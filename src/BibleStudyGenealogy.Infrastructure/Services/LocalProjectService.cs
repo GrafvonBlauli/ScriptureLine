@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BibleStudyGenealogy.Core.Models;
+using BibleStudyGenealogy.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 
 namespace BibleStudyGenealogy.Infrastructure.Services;
@@ -86,10 +87,8 @@ public sealed class LocalProjectService : IProjectService
     {
         ArgumentNullException.ThrowIfNull(workspace);
 
-        await using var connection = new SqliteConnection(CreateConnectionString(workspace.DatabasePath));
-        await connection.OpenAsync(cancellationToken);
-
-        var personCount = await ReadCountAsync(connection, "Persons", cancellationToken);
+        var personRepository = new PersonRepository(workspace.DatabasePath);
+        var personCount = await personRepository.CountAsync(cancellationToken);
 
         return new ProjectStatistics(
             personCount,
@@ -291,11 +290,4 @@ public sealed class LocalProjectService : IProjectService
         return builder.ToString();
     }
 
-    private static async Task<int> ReadCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT COUNT(*) FROM {tableName};";
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
 }

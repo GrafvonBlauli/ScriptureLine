@@ -284,12 +284,118 @@
                                        TextWrapping="Wrap" />
                         </StackPanel>
                         <Button Grid.Column="1"
+                                x:Name="CreatePersonButton"
                                 Classes="primary"
                                 Content="Person anlegen"
+                                Click="CreatePersonButton_Click"
                                 IsEnabled="False"
                                 VerticalAlignment="Center" />
                     </Grid>
                 </Border>
+
+                <Grid ColumnDefinitions="0.9*,1.1*"
+                      ColumnSpacing="18">
+                    <Border Classes="card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Personen"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBox x:Name="PersonSearchTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Person suchen"
+                                     TextChanged="PersonSearchTextBox_TextChanged" />
+                            <ListBox x:Name="PeopleListBox"
+                                     MinHeight="260"
+                                     SelectionChanged="PeopleListBox_SelectionChanged" />
+                            <TextBlock x:Name="PeopleEmptyText"
+                                       Text="Noch keine Personen erfasst."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Person bearbeiten"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <Grid ColumnDefinitions="*,*"
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                  ColumnSpacing="12"
+                                  RowSpacing="10">
+                                <TextBox x:Name="MainNameTextBox"
+                                         Grid.Row="0"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Hauptname" />
+                                <TextBox x:Name="AlternativeNamesTextBox"
+                                         Grid.Row="0"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Alternative Namen" />
+                                <TextBox x:Name="HebrewNameTextBox"
+                                         Grid.Row="1"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Hebräischer Name" />
+                                <TextBox x:Name="GreekNameTextBox"
+                                         Grid.Row="1"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Griechischer Name" />
+                                <TextBox x:Name="NameMeaningTextBox"
+                                         Grid.Row="2"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Namensbedeutung" />
+                                <TextBox x:Name="PrimaryRoleTextBox"
+                                         Grid.Row="2"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Rolle" />
+                                <TextBox x:Name="OccupationTextBox"
+                                         Grid.Row="3"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Beruf" />
+                                <ComboBox x:Name="GenderComboBox"
+                                          Grid.Row="3"
+                                          Grid.Column="1"
+                                          Classes="project-name" />
+                                <ComboBox x:Name="PersonStatusComboBox"
+                                          Grid.Row="4"
+                                          Grid.Column="0"
+                                          Classes="project-name" />
+                                <TextBox x:Name="ShortDescriptionTextBox"
+                                         Grid.Row="4"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Kurzbeschreibung" />
+                                <TextBox x:Name="LongDescriptionTextBox"
+                                         Grid.Row="5"
+                                         Grid.ColumnSpan="2"
+                                         Classes="project-name"
+                                         AcceptsReturn="True"
+                                         MinHeight="88"
+                                         TextWrapping="Wrap"
+                                         PlaceholderText="Notizen" />
+                            </Grid>
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="12">
+                                <Button x:Name="SavePersonButton"
+                                        Classes="primary"
+                                        Content="Person speichern"
+                                        Click="SavePersonButton_Click"
+                                        IsEnabled="False" />
+                                <Button Classes="secondary"
+                                        Content="Neue Eingabe"
+                                        Click="CreatePersonButton_Click" />
+                            </StackPanel>
+                            <TextBlock x:Name="PersonFormStatusText"
+                                       Text="Öffne oder erstelle zuerst ein Projekt."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
     </Grid>
