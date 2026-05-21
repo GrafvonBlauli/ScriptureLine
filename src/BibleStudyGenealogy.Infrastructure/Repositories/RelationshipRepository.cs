@@ -28,13 +28,16 @@ public sealed class RelationshipRepository : IRelationshipRepository
                    CertaintyLevel,
                    SourceNote,
                    Comment,
+                   Status,
                    CreatedAtUtc,
                    UpdatedAtUtc
             FROM Relationships
-            WHERE PersonAId = $personId OR PersonBId = $personId
+            WHERE Status = $status
+              AND (PersonAId = $personId OR PersonBId = $personId)
             ORDER BY UpdatedAtUtc DESC;
             """;
         command.Parameters.AddWithValue("$personId", personId.ToString());
+        command.Parameters.AddWithValue("$status", RelationshipStatus.Active.ToString());
 
         var relationships = new List<Relationship>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -61,6 +64,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
                    CertaintyLevel,
                    SourceNote,
                    Comment,
+                   Status,
                    CreatedAtUtc,
                    UpdatedAtUtc
             FROM Relationships
@@ -115,6 +119,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
                 CertaintyLevel,
                 SourceNote,
                 Comment,
+                Status,
                 CreatedAtUtc,
                 UpdatedAtUtc
             )
@@ -127,6 +132,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
                 $certaintyLevel,
                 $sourceNote,
                 $comment,
+                $status,
                 $createdAtUtc,
                 $updatedAtUtc
             )
@@ -138,6 +144,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
                 CertaintyLevel = excluded.CertaintyLevel,
                 SourceNote = excluded.SourceNote,
                 Comment = excluded.Comment,
+                Status = excluded.Status,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
             """;
 
@@ -149,8 +156,28 @@ public sealed class RelationshipRepository : IRelationshipRepository
         command.Parameters.AddWithValue("$certaintyLevel", relationship.CertaintyLevel.ToString());
         command.Parameters.AddWithValue("$sourceNote", relationship.SourceNote.Trim());
         command.Parameters.AddWithValue("$comment", relationship.Comment.Trim());
+        command.Parameters.AddWithValue("$status", relationship.Status.ToString());
         command.Parameters.AddWithValue("$createdAtUtc", relationship.CreatedAtUtc.ToString("O"));
         command.Parameters.AddWithValue("$updatedAtUtc", relationship.UpdatedAtUtc.ToString("O"));
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task ArchiveAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqliteConnection(CreateConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE Relationships
+            SET Status = $status,
+                UpdatedAtUtc = $updatedAtUtc
+            WHERE Id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$status", RelationshipStatus.Archived.ToString());
+        command.Parameters.AddWithValue("$updatedAtUtc", DateTimeOffset.UtcNow.ToString("O"));
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -161,7 +188,8 @@ public sealed class RelationshipRepository : IRelationshipRepository
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM Relationships;";
+        command.CommandText = "SELECT COUNT(*) FROM Relationships WHERE Status = $status;";
+        command.Parameters.AddWithValue("$status", RelationshipStatus.Active.ToString());
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt32(result);
     }
@@ -174,6 +202,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
             FROM Relationships
             WHERE Id <> $id
               AND RelationshipType = $relationshipType
+              AND Status = $status
               AND (
                     (PersonAId = $personAId AND PersonBId = $personBId)
                  OR (PersonAId = $personBId AND PersonBId = $personAId)
@@ -181,6 +210,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
             """;
         command.Parameters.AddWithValue("$id", relationship.Id.ToString());
         command.Parameters.AddWithValue("$relationshipType", relationship.RelationshipType.ToString());
+        command.Parameters.AddWithValue("$status", RelationshipStatus.Active.ToString());
         command.Parameters.AddWithValue("$personAId", relationship.PersonAId.ToString());
         command.Parameters.AddWithValue("$personBId", relationship.PersonBId.ToString());
 
@@ -211,8 +241,9 @@ public sealed class RelationshipRepository : IRelationshipRepository
             CertaintyLevel = Enum.Parse<CertaintyLevel>(reader.GetString(5)),
             SourceNote = reader.GetString(6),
             Comment = reader.GetString(7),
-            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(8)),
-            UpdatedAtUtc = DateTimeOffset.Parse(reader.GetString(9))
+            Status = Enum.Parse<RelationshipStatus>(reader.GetString(8)),
+            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(9)),
+            UpdatedAtUtc = DateTimeOffset.Parse(reader.GetString(10))
         };
     }
 }

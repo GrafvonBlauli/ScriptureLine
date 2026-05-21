@@ -10,5 +10,7 @@ public interface IRelationshipRepository
 
     Task SaveAsync(Relationship relationship, CancellationToken cancellationToken = default);
 
+    Task ArchiveAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task<int> CountAsync(CancellationToken cancellationToken = default);
 }

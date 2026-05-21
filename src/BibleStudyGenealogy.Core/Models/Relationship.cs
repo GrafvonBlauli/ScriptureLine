@@ -18,6 +18,8 @@ public sealed class Relationship
 
     public string Comment { get; set; } = string.Empty;
 
+    public RelationshipStatus Status { get; set; } = RelationshipStatus.Active;
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

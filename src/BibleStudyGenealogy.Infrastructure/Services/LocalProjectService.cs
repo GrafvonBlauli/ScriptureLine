@@ -156,6 +156,7 @@ public sealed class LocalProjectService : IProjectService
         await using var schemaCommand = connection.CreateCommand();
         schemaCommand.CommandText = SchemaSql;
         await schemaCommand.ExecuteNonQueryAsync(cancellationToken);
+        await EnsureRelationshipStatusColumnAsync(connection, cancellationToken);
 
         await using var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = """
@@ -255,6 +256,26 @@ public sealed class LocalProjectService : IProjectService
         await using var schemaCommand = connection.CreateCommand();
         schemaCommand.CommandText = SchemaSql;
         await schemaCommand.ExecuteNonQueryAsync(cancellationToken);
+        await EnsureRelationshipStatusColumnAsync(connection, cancellationToken);
+    }
+
+    private static async Task EnsureRelationshipStatusColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var readColumnsCommand = connection.CreateCommand();
+        readColumnsCommand.CommandText = "PRAGMA table_info(Relationships);";
+
+        await using var reader = await readColumnsCommand.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (string.Equals(reader.GetString(1), "Status", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        await using var addColumnCommand = connection.CreateCommand();
+        addColumnCommand.CommandText = "ALTER TABLE Relationships ADD COLUMN Status TEXT NOT NULL DEFAULT 'Active';";
+        await addColumnCommand.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static string CreateConnectionString(string databasePath)
@@ -314,6 +335,7 @@ public sealed class LocalProjectService : IProjectService
             CertaintyLevel TEXT NOT NULL,
             SourceNote TEXT NOT NULL DEFAULT '',
             Comment TEXT NOT NULL DEFAULT '',
+            Status TEXT NOT NULL DEFAULT 'Active',
             CreatedAtUtc TEXT NOT NULL,
             UpdatedAtUtc TEXT NOT NULL,
             CHECK (PersonAId <> PersonBId),

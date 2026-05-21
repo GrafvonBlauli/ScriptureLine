@@ -2,7 +2,7 @@
 
 **Zweck:** Laufendes Protokoll der Arbeitsschritte an ScriptureLine.  
 **Zeitzone:** Europe/Berlin  
-**Zuletzt aktualisiert:** 2026-05-22 00:47:22 +02:00  
+**Zuletzt aktualisiert:** 2026-05-22 00:57:41 +02:00  
 **Aktueller Branch:** `main`  
 **GitHub-Remote:** `origin -> https://github.com/GrafvonBlauli/ScriptureLine.git`  
 
@@ -131,3 +131,12 @@
 **Ergebnis:** Beziehungen können gespeichert, aktualisiert, für beide Personen geladen und als Familienliste sowie einfache Stammbaum-Vorschau angezeigt werden. Der Dashboard-Zähler für Beziehungen liest echte SQLite-Daten. Doppelte Beziehungen werden verhindert.  
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 9 Tests.  
 **Offene Punkte:** Commit `Add relationship management foundation` erstellen und nach GitHub pushen.
+
+### 2026-05-22 00:57:41 +02:00 - Stammbaum-Vorschau ausgebaut
+
+**Kategorie:** Stammbaum / Beziehungen / Rendering / UI / Tests  
+**Aktion:** Beziehungen wurden bearbeitbar und archivierbar gemacht. Zusätzlich wurde ein testbarer `FamilyTreeBuilder` im Rendering-Projekt ergänzt.  
+**Geänderte Bereiche:** Core-Modell `RelationshipStatus`, `Relationship` mit Status, `RelationshipRepository` mit Archivierung und Aktiv-Filter, SQLite-Schema-Migration, `FamilyTreeBuilder` samt DTOs, UI für Beziehungsauswahl/-bearbeitung/-archivierung und Stammbaum-Vorschau.  
+**Ergebnis:** Aktive Beziehungen erscheinen in Listen und Zählern. Archivierte Beziehungen bleiben geladen, werden aber aus Standardlisten und Zählern ausgeblendet. Die App zeigt Eltern, Fokusperson, Partner, Kinder sowie weitere/unsichere Beziehungen als einfache Stammbaum-Vorschau.  
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 13 Tests.  
+**Offene Punkte:** Commit `Add simple family tree preview` erstellen und nach GitHub pushen.

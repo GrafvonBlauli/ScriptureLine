@@ -130,6 +130,37 @@ public sealed class RelationshipRepositoryTests
     }
 
     [Fact]
+    public async Task ArchiveAsync_HidesRelationshipFromDefaultListsAndCount()
+    {
+        await using var project = await TestProject.CreateAsync();
+        var personRepository = new PersonRepository(project.Workspace.DatabasePath);
+        var relationshipRepository = new RelationshipRepository(project.Workspace.DatabasePath);
+        var personA = new Person { MainName = "Person A" };
+        var personB = new Person { MainName = "Person B" };
+        var relationship = new Relationship
+        {
+            PersonAId = personA.Id,
+            PersonBId = personB.Id,
+            RelationshipType = RelationshipType.Spouse,
+            Direction = RelationshipDirection.Undirected
+        };
+
+        await personRepository.SaveAsync(personA);
+        await personRepository.SaveAsync(personB);
+        await relationshipRepository.SaveAsync(relationship);
+        await relationshipRepository.ArchiveAsync(relationship.Id);
+
+        var relationships = await relationshipRepository.GetForPersonAsync(personA.Id);
+        var loadedRelationship = await relationshipRepository.GetByIdAsync(relationship.Id);
+        var count = await relationshipRepository.CountAsync();
+
+        Assert.Empty(relationships);
+        Assert.NotNull(loadedRelationship);
+        Assert.Equal(RelationshipStatus.Archived, loadedRelationship.Status);
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
     public async Task ProjectStatistics_UsesRelationshipCount()
     {
         await using var project = await TestProject.CreateAsync();

@@ -414,7 +414,8 @@
                             <TextBlock Text="Beziehungen der ausgewählten Person"
                                        Classes="body" />
                             <ListBox x:Name="RelationshipsListBox"
-                                     MinHeight="180" />
+                                     MinHeight="180"
+                                     SelectionChanged="RelationshipsListBox_SelectionChanged" />
                             <TextBlock x:Name="RelationshipsEmptyText"
                                        Text="Wähle eine Person aus, um Beziehungen zu sehen."
                                        Classes="body" />
@@ -448,12 +449,45 @@
                                     Content="Beziehung speichern"
                                     Click="SaveRelationshipButton_Click"
                                     IsEnabled="False" />
+                            <Button x:Name="ArchiveRelationshipButton"
+                                    Classes="secondary"
+                                    Content="Beziehung archivieren"
+                                    Click="ArchiveRelationshipButton_Click"
+                                    IsEnabled="False" />
                             <TextBlock x:Name="RelationshipFormStatusText"
                                        Text="Wähle zuerst eine Person aus."
                                        Classes="body" />
                         </StackPanel>
                     </Border>
                 </Grid>
+
+                <Border Classes="card">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="Stammbaum"
+                                   Classes="display"
+                                   FontSize="30" />
+                        <TextBlock Text="Einfache Vorschau der ausgewählten Person"
+                                   Classes="body" />
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                              RowSpacing="10">
+                            <Border Grid.Row="0" Background="{StaticResource ParchmentTintBrush}" CornerRadius="8" Padding="14">
+                                <TextBlock x:Name="TreeParentsText" Text="Eltern: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
+                            </Border>
+                            <Border Grid.Row="1" Background="#F4DFAF" CornerRadius="8" Padding="14">
+                                <TextBlock x:Name="TreeFocusText" Text="Fokusperson: keine ausgewählt" Foreground="{StaticResource InkGreenBrush}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            </Border>
+                            <Border Grid.Row="2" Background="{StaticResource ParchmentTintBrush}" CornerRadius="8" Padding="14">
+                                <TextBlock x:Name="TreePartnersText" Text="Partner: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
+                            </Border>
+                            <Border Grid.Row="3" Background="{StaticResource ParchmentTintBrush}" CornerRadius="8" Padding="14">
+                                <TextBlock x:Name="TreeChildrenText" Text="Kinder: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
+                            </Border>
+                            <Border Grid.Row="4" Background="#E8D2A4" CornerRadius="8" Padding="14">
+                                <TextBlock x:Name="TreeOtherText" Text="Weitere oder unsichere Beziehungen: keine" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </Grid>
