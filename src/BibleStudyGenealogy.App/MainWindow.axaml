@@ -1,0 +1,296 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
+        x:Class="BibleStudyGenealogy.App.MainWindow"
+        Title="ScriptureLine"
+        Width="1280"
+        Height="820"
+        MinWidth="1040"
+        MinHeight="680">
+    <Grid ColumnDefinitions="260,*">
+        <Border Grid.Column="0"
+                Background="{StaticResource InkGreenBrush}"
+                Padding="24">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="ScriptureLine"
+                               Classes="display"
+                               Foreground="{StaticResource CreamBrush}"
+                               FontSize="30" />
+                    <TextBlock Text="Persönlicher Studienraum"
+                               Foreground="#BDAE8D"
+                               FontSize="13" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1"
+                            Margin="0,36,0,0"
+                            Spacing="8">
+                    <Button Classes="nav active" Content="Dashboard" />
+                    <Button Classes="nav" Content="Personen" />
+                    <Button Classes="nav" Content="Stammbaum" />
+                    <Button Classes="nav" Content="Zeitstrahl" />
+                    <Button Classes="nav" Content="Karte" />
+                    <Button Classes="nav" Content="Ereignisse" />
+                    <Button Classes="nav" Content="Orte" />
+                    <Button Classes="nav" Content="Bibelstellen" />
+                    <Button Classes="nav" Content="Mediathek" />
+                    <Button Classes="nav" Content="Forschungsfragen" />
+                </StackPanel>
+
+                <Border Grid.Row="2"
+                        Classes="dark-card"
+                        Padding="16">
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Name="SidebarProjectTitle"
+                                   Text="Studienmodus"
+                                   Foreground="{StaticResource CreamBrush}"
+                                   FontWeight="SemiBold" />
+                        <TextBlock x:Name="SidebarProjectStatus"
+                                   Text="Kein Projekt geladen"
+                                   Foreground="#BDAE8D"
+                                   FontSize="12" />
+                        <Button Classes="secondary"
+                                Content="Projekt öffnen"
+                                Click="OpenProjectButton_Click" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Column="1"
+                      Background="{StaticResource PetrolBrush}">
+            <StackPanel Margin="34"
+                        Spacing="24">
+                <Border Background="{StaticResource ParchmentBrush}"
+                        CornerRadius="8"
+                        ClipToBounds="True">
+                    <Grid MinHeight="300"
+                          ColumnDefinitions="1.15*,0.85*">
+                        <StackPanel Margin="34"
+                                    Spacing="18"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="Dashboard"
+                                       Foreground="{StaticResource TerracottaBrush}"
+                                       FontWeight="SemiBold"
+                                       FontSize="14" />
+                            <TextBlock Text="ScriptureLine"
+                                       Classes="display"
+                                       FontSize="54" />
+                            <TextBlock Text="Ein ruhiger Ort für Personen, Beziehungen, Orte, Bibelstellen und eigene Forschungsfragen."
+                                       Classes="body"
+                                       MaxWidth="520" />
+                            <TextBox x:Name="ProjectNameTextBox"
+                                     Classes="project-name"
+                                     Width="320"
+                                     HorizontalAlignment="Left"
+                                     PlaceholderText="Projektname"
+                                     Text="Mein Bibelprojekt" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="12">
+                                <Button Classes="primary"
+                                        Content="Neues Projekt"
+                                        Click="CreateProjectButton_Click" />
+                                <Button Classes="secondary"
+                                        Content="Projekt öffnen"
+                                        Click="OpenProjectButton_Click" />
+                            </StackPanel>
+                            <TextBlock x:Name="ProjectStatusText"
+                                       Text="Wähle einen Speicherort, um dein erstes lokales Studienprojekt anzulegen."
+                                       Classes="body"
+                                       MaxWidth="520" />
+                        </StackPanel>
+
+                        <Canvas Grid.Column="1"
+                                ClipToBounds="True"
+                                Background="#F7E8C8">
+                            <Path Fill="#E8C583"
+                                  Data="M0,248 L70,150 L115,190 L190,88 L270,202 L360,122 L430,248 Z" />
+                            <Path Fill="#203A38"
+                                  Opacity="0.92"
+                                  Data="M0,300 L76,214 L124,240 L190,170 L250,236 L318,182 L430,300 Z" />
+                            <Path Fill="#142322"
+                                  Opacity="0.92"
+                                  Data="M0,300 L95,235 L158,255 L226,206 L292,262 L358,220 L430,300 Z" />
+                            <Rectangle Canvas.Left="285"
+                                       Canvas.Top="94"
+                                       Width="72"
+                                       Height="145"
+                                       Fill="{StaticResource TerracottaBrush}" />
+                            <Rectangle Canvas.Left="276"
+                                       Canvas.Top="78"
+                                       Width="90"
+                                       Height="24"
+                                       Fill="{StaticResource InkGreenBrush}" />
+                            <Ellipse Canvas.Left="286"
+                                     Canvas.Top="43"
+                                     Width="70"
+                                     Height="58"
+                                     Fill="{StaticResource TerracottaBrush}" />
+                            <Rectangle Canvas.Left="304"
+                                       Canvas.Top="122"
+                                       Width="14"
+                                       Height="34"
+                                       Fill="{StaticResource InkGreenBrush}" />
+                            <Rectangle Canvas.Left="331"
+                                       Canvas.Top="122"
+                                       Width="14"
+                                       Height="34"
+                                       Fill="{StaticResource InkGreenBrush}" />
+                            <Rectangle Canvas.Left="311"
+                                       Canvas.Top="194"
+                                       Width="24"
+                                       Height="45"
+                                       Fill="{StaticResource InkGreenBrush}" />
+                            <Ellipse Canvas.Left="58"
+                                     Canvas.Top="224"
+                                     Width="8"
+                                     Height="8"
+                                     Fill="{StaticResource SageBrush}" />
+                            <Ellipse Canvas.Left="84"
+                                     Canvas.Top="224"
+                                     Width="8"
+                                     Height="8"
+                                     Fill="{StaticResource SageBrush}" />
+                            <Ellipse Canvas.Left="110"
+                                     Canvas.Top="224"
+                                     Width="8"
+                                     Height="8"
+                                     Fill="{StaticResource SageBrush}" />
+                        </Canvas>
+                    </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*,*,*,*"
+                      ColumnSpacing="16">
+                    <Border Grid.Column="0" Classes="card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Personen" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBlock x:Name="PersonCountText" Text="0" Classes="display" FontSize="34" />
+                            <TextBlock Text="Noch keine Personen erfasst" Classes="body" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Classes="card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Beziehungen" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBlock x:Name="RelationshipCountText" Text="0" Classes="display" FontSize="34" />
+                            <TextBlock Text="Familienlinien vorbereiten" Classes="body" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Orte" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBlock x:Name="PlaceCountText" Text="0" Classes="display" FontSize="34" />
+                            <TextBlock Text="Historische Namen sammeln" Classes="body" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="3" Classes="card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Forschungsfragen" Foreground="{StaticResource MutedTextBrush}" />
+                            <TextBlock x:Name="ResearchQuestionCountText" Text="0" Classes="display" FontSize="34" />
+                            <TextBlock Text="Offene Fragen sichtbar halten" Classes="body" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="1.1*,0.9*"
+                      ColumnSpacing="18">
+                    <Border Grid.Column="0"
+                            Classes="card">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="Personenakte"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <Grid ColumnDefinitions="120,*"
+                                  ColumnSpacing="18">
+                                <Border Width="112"
+                                        Height="132"
+                                        CornerRadius="8"
+                                        Background="{StaticResource ParchmentTintBrush}"
+                                        BorderBrush="{StaticResource SoftLineBrush}"
+                                        BorderThickness="1">
+                                    <TextBlock Text="Bild"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{StaticResource MutedTextBrush}" />
+                                </Border>
+                                <StackPanel Grid.Column="1"
+                                            Spacing="10">
+                                    <TextBlock x:Name="CurrentProjectTitle"
+                                               Text="Noch kein Projekt geöffnet"
+                                               Foreground="{StaticResource InkGreenBrush}"
+                                               FontSize="22"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock x:Name="CurrentProjectDetails"
+                                               Text="Lege ein lokales Projekt an oder öffne einen bestehenden Projektordner."
+                                               Classes="body"
+                                               TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8">
+                                        <Border Background="{StaticResource ParchmentTintBrush}" CornerRadius="6" Padding="10,6">
+                                            <TextBlock Text="Überblick" Foreground="{StaticResource InkGreenBrush}" />
+                                        </Border>
+                                        <Border Background="#F4DFAF" CornerRadius="6" Padding="10,6">
+                                            <TextBlock Text="Familie" Foreground="{StaticResource InkGreenBrush}" />
+                                        </Border>
+                                        <Border Background="#F4DFAF" CornerRadius="6" Padding="10,6">
+                                            <TextBlock Text="Notizen" Foreground="{StaticResource InkGreenBrush}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Classes="dark-card">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="Nächste Schritte"
+                                       Classes="section-title" />
+                            <Border Background="#284744"
+                                    CornerRadius="8"
+                                    Padding="14">
+                                <TextBlock Text="Projekt anlegen"
+                                           Foreground="{StaticResource CreamBrush}"
+                                           FontWeight="SemiBold" />
+                            </Border>
+                            <Border Background="#284744"
+                                    CornerRadius="8"
+                                    Padding="14">
+                                <TextBlock Text="Erste Person erfassen"
+                                           Foreground="{StaticResource CreamBrush}"
+                                           FontWeight="SemiBold" />
+                            </Border>
+                            <Border Background="#284744"
+                                    CornerRadius="8"
+                                    Padding="14">
+                                <TextBlock Text="Beziehungen und Quellen ergänzen"
+                                           Foreground="{StaticResource CreamBrush}"
+                                           FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Classes="dark-card">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="20">
+                        <StackPanel Spacing="7">
+                            <TextBlock Text="Stammbaum-Vorschau"
+                                       Classes="section-title" />
+                            <TextBlock Text="Personenkarten werden später im Pergamentstil verbunden. Sichere Linien bleiben klar, unsichere Beziehungen werden gedämpft oder gestrichelt dargestellt."
+                                       Foreground="#BDAE8D"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Classes="primary"
+                                Content="Person anlegen"
+                                IsEnabled="False"
+                                VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

@@ -1,0 +1,301 @@
+using System.Text.Json;
+using BibleStudyGenealogy.Core.Models;
+using Microsoft.Data.Sqlite;
+
+namespace BibleStudyGenealogy.Infrastructure.Services;
+
+public sealed class LocalProjectService : IProjectService
+{
+    private const string ManifestFileName = "manifest.json";
+    private const string DatabaseFileName = "project.sqlite";
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    public async Task<ProjectWorkspace> CreateProjectAsync(ProjectCreationRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.ParentDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.ProjectName);
+
+        var rootDirectory = CreateUniqueProjectDirectory(request.ParentDirectory, request.ProjectName);
+        Directory.CreateDirectory(rootDirectory);
+        CreateProjectFolders(rootDirectory);
+
+        var now = DateTimeOffset.UtcNow;
+        var metadata = new ProjectMetadata
+        {
+            ProjectName = request.ProjectName.Trim(),
+            CreatedAtUtc = now,
+            LastOpenedAtUtc = now
+        };
+
+        var settings = new ProjectSettings
+        {
+            ProjectName = metadata.ProjectName,
+            Description = request.Description.Trim(),
+            Language = request.Language.Trim(),
+            PreferredBibleTranslation = request.PreferredBibleTranslation.Trim(),
+            CreatedAtUtc = now,
+            LastOpenedAtUtc = now
+        };
+
+        var databasePath = Path.Combine(rootDirectory, DatabaseFileName);
+        await InitializeDatabaseAsync(databasePath, settings, cancellationToken);
+
+        var manifestPath = Path.Combine(rootDirectory, ManifestFileName);
+        await SaveManifestAsync(manifestPath, metadata, cancellationToken);
+
+        return new ProjectWorkspace(rootDirectory, databasePath, manifestPath, metadata, settings);
+    }
+
+    public async Task<ProjectWorkspace> OpenProjectAsync(string projectDirectory, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectDirectory);
+
+        var manifestPath = Path.Combine(projectDirectory, ManifestFileName);
+        var databasePath = Path.Combine(projectDirectory, DatabaseFileName);
+
+        if (!File.Exists(manifestPath))
+        {
+            throw new FileNotFoundException("Die Projektdatei manifest.json wurde nicht gefunden.", manifestPath);
+        }
+
+        if (!File.Exists(databasePath))
+        {
+            throw new FileNotFoundException("Die Datenbank project.sqlite wurde nicht gefunden.", databasePath);
+        }
+
+        var metadataJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
+        var metadata = JsonSerializer.Deserialize<ProjectMetadata>(metadataJson, JsonOptions)
+            ?? throw new InvalidOperationException("Die Projektdatei manifest.json konnte nicht gelesen werden.");
+
+        var settings = await ReadSettingsAsync(databasePath, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        metadata.LastOpenedAtUtc = now;
+        settings.LastOpenedAtUtc = now;
+
+        await UpdateLastOpenedAsync(databasePath, now, cancellationToken);
+        await SaveManifestAsync(manifestPath, metadata, cancellationToken);
+
+        return new ProjectWorkspace(projectDirectory, databasePath, manifestPath, metadata, settings);
+    }
+
+    public async Task<ProjectStatistics> ReadStatisticsAsync(ProjectWorkspace workspace, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+
+        await using var connection = new SqliteConnection(CreateConnectionString(workspace.DatabasePath));
+        await connection.OpenAsync(cancellationToken);
+
+        var personCount = await ReadCountAsync(connection, "Persons", cancellationToken);
+
+        return new ProjectStatistics(
+            personCount,
+            RelationshipCount: 0,
+            PlaceCount: 0,
+            ResearchQuestionCount: 0);
+    }
+
+    private static string CreateUniqueProjectDirectory(string parentDirectory, string projectName)
+    {
+        var safeName = SanitizeDirectoryName(projectName);
+        var candidate = Path.Combine(parentDirectory, safeName);
+
+        if (!Directory.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        var suffix = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
+        return Path.Combine(parentDirectory, $"{safeName}-{suffix}");
+    }
+
+    private static string SanitizeDirectoryName(string projectName)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        var sanitized = new string(projectName.Trim()
+            .Select(character => invalidCharacters.Contains(character) ? '-' : character)
+            .ToArray());
+
+        return string.IsNullOrWhiteSpace(sanitized)
+            ? "ScriptureLine-Projekt"
+            : sanitized;
+    }
+
+    private static void CreateProjectFolders(string rootDirectory)
+    {
+        var folders = new[]
+        {
+            "Media",
+            Path.Combine("Media", "Persons"),
+            Path.Combine("Media", "Places"),
+            Path.Combine("Media", "Events"),
+            Path.Combine("Media", "PDFs"),
+            Path.Combine("Media", "Maps"),
+            Path.Combine("Media", "Other"),
+            "Thumbnails",
+            "Backups"
+        };
+
+        foreach (var folder in folders)
+        {
+            Directory.CreateDirectory(Path.Combine(rootDirectory, folder));
+        }
+    }
+
+    private static async Task InitializeDatabaseAsync(string databasePath, ProjectSettings settings, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
+        await connection.OpenAsync(cancellationToken);
+
+        await using var schemaCommand = connection.CreateCommand();
+        schemaCommand.CommandText = """
+            PRAGMA user_version = 1;
+
+            CREATE TABLE IF NOT EXISTS ProjectSettings (
+                Id INTEGER PRIMARY KEY CHECK (Id = 1),
+                ProjectName TEXT NOT NULL,
+                Description TEXT NOT NULL,
+                Language TEXT NOT NULL,
+                PreferredBibleTranslation TEXT NOT NULL,
+                CreatedAtUtc TEXT NOT NULL,
+                LastOpenedAtUtc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS SchemaInfo (
+                Id INTEGER PRIMARY KEY CHECK (Id = 1),
+                SchemaVersion INTEGER NOT NULL,
+                AppliedAtUtc TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS Persons (
+                Id TEXT PRIMARY KEY,
+                MainName TEXT NOT NULL,
+                AlternativeNames TEXT NOT NULL DEFAULT '',
+                HebrewName TEXT NOT NULL DEFAULT '',
+                GreekName TEXT NOT NULL DEFAULT '',
+                NameMeaning TEXT NOT NULL DEFAULT '',
+                Gender TEXT NOT NULL,
+                PrimaryRole TEXT NOT NULL DEFAULT '',
+                Occupation TEXT NOT NULL DEFAULT '',
+                ShortDescription TEXT NOT NULL DEFAULT '',
+                LongDescription TEXT NOT NULL DEFAULT '',
+                PortraitMediaFileId TEXT NULL,
+                Status TEXT NOT NULL,
+                CreatedAtUtc TEXT NOT NULL,
+                UpdatedAtUtc TEXT NOT NULL
+            );
+            """;
+        await schemaCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = """
+            INSERT INTO ProjectSettings (
+                Id,
+                ProjectName,
+                Description,
+                Language,
+                PreferredBibleTranslation,
+                CreatedAtUtc,
+                LastOpenedAtUtc
+            )
+            VALUES (
+                1,
+                $projectName,
+                $description,
+                $language,
+                $preferredBibleTranslation,
+                $createdAtUtc,
+                $lastOpenedAtUtc
+            );
+
+            INSERT INTO SchemaInfo (Id, SchemaVersion, AppliedAtUtc)
+            VALUES (1, $schemaVersion, $appliedAtUtc);
+            """;
+        insertCommand.Parameters.AddWithValue("$projectName", settings.ProjectName);
+        insertCommand.Parameters.AddWithValue("$description", settings.Description);
+        insertCommand.Parameters.AddWithValue("$language", settings.Language);
+        insertCommand.Parameters.AddWithValue("$preferredBibleTranslation", settings.PreferredBibleTranslation);
+        insertCommand.Parameters.AddWithValue("$createdAtUtc", settings.CreatedAtUtc.ToString("O"));
+        insertCommand.Parameters.AddWithValue("$lastOpenedAtUtc", settings.LastOpenedAtUtc.ToString("O"));
+        insertCommand.Parameters.AddWithValue("$schemaVersion", ProjectDefaults.SchemaVersion);
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", settings.CreatedAtUtc.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<ProjectSettings> ReadSettingsAsync(string databasePath, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ProjectName,
+                   Description,
+                   Language,
+                   PreferredBibleTranslation,
+                   CreatedAtUtc,
+                   LastOpenedAtUtc
+            FROM ProjectSettings
+            WHERE Id = 1;
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("Die Projekteinstellungen wurden in der Datenbank nicht gefunden.");
+        }
+
+        return new ProjectSettings
+        {
+            ProjectName = reader.GetString(0),
+            Description = reader.GetString(1),
+            Language = reader.GetString(2),
+            PreferredBibleTranslation = reader.GetString(3),
+            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(4)),
+            LastOpenedAtUtc = DateTimeOffset.Parse(reader.GetString(5))
+        };
+    }
+
+    private static async Task UpdateLastOpenedAsync(string databasePath, DateTimeOffset lastOpenedAtUtc, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE ProjectSettings
+            SET LastOpenedAtUtc = $lastOpenedAtUtc
+            WHERE Id = 1;
+            """;
+        command.Parameters.AddWithValue("$lastOpenedAtUtc", lastOpenedAtUtc.ToString("O"));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task SaveManifestAsync(string manifestPath, ProjectMetadata metadata, CancellationToken cancellationToken)
+    {
+        var metadataJson = JsonSerializer.Serialize(metadata, JsonOptions);
+        await File.WriteAllTextAsync(manifestPath, metadataJson, cancellationToken);
+    }
+
+    private static string CreateConnectionString(string databasePath)
+    {
+        var builder = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Pooling = false
+        };
+
+        return builder.ToString();
+    }
+
+    private static async Task<int> ReadCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM {tableName};";
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+}

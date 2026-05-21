@@ -1,0 +1,41 @@
+# Build output
+bin/
+obj/
+**/bin/
+**/obj/
+
+# .NET and IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+# Test and coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+coverage.cobertura.xml
+
+# NuGet and packaging
+*.nupkg
+packages/
+
+# Local ScriptureLine project data
+**/project.sqlite
+**/*.biblestudy
+**/Backups/
+**/Thumbnails/
+**/Media/Persons/
+**/Media/Places/
+**/Media/Events/
+**/Media/PDFs/
+**/Media/Maps/
+**/Media/Other/
+
+# OS files
+Thumbs.db
+Desktop.ini

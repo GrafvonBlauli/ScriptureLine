@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BibleStudyGenealogy.App/BibleStudyGenealogy.App.csproj" />
+    <Project Path="src/BibleStudyGenealogy.Core/BibleStudyGenealogy.Core.csproj" />
+    <Project Path="src/BibleStudyGenealogy.Infrastructure/BibleStudyGenealogy.Infrastructure.csproj" />
+    <Project Path="src/BibleStudyGenealogy.Maps/BibleStudyGenealogy.Maps.csproj" />
+    <Project Path="src/BibleStudyGenealogy.Rendering/BibleStudyGenealogy.Rendering.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BibleStudyGenealogy.Tests/BibleStudyGenealogy.Tests.csproj" />
+  </Folder>
+</Solution>

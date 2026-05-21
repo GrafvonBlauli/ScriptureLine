@@ -1,0 +1,106 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <Color x:Key="InkGreenColor">#142322</Color>
+        <Color x:Key="PetrolColor">#203A38</Color>
+        <Color x:Key="ParchmentColor">#F1D5A3</Color>
+        <Color x:Key="CreamColor">#F7E8C8</Color>
+        <Color x:Key="TerracottaColor">#C75C3E</Color>
+        <Color x:Key="SageColor">#7FAE97</Color>
+        <Color x:Key="OchreColor">#D7A65A</Color>
+        <Color x:Key="DeepShadowColor">#0A1211</Color>
+
+        <SolidColorBrush x:Key="InkGreenBrush" Color="{StaticResource InkGreenColor}" />
+        <SolidColorBrush x:Key="PetrolBrush" Color="{StaticResource PetrolColor}" />
+        <SolidColorBrush x:Key="ParchmentBrush" Color="{StaticResource ParchmentColor}" />
+        <SolidColorBrush x:Key="CreamBrush" Color="{StaticResource CreamColor}" />
+        <SolidColorBrush x:Key="TerracottaBrush" Color="{StaticResource TerracottaColor}" />
+        <SolidColorBrush x:Key="SageBrush" Color="{StaticResource SageColor}" />
+        <SolidColorBrush x:Key="OchreBrush" Color="{StaticResource OchreColor}" />
+        <SolidColorBrush x:Key="DeepShadowBrush" Color="{StaticResource DeepShadowColor}" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#6E5940" />
+        <SolidColorBrush x:Key="SoftLineBrush" Color="#D7B982" />
+        <SolidColorBrush x:Key="ParchmentTintBrush" Color="#FAE8BC" />
+    </Styles.Resources>
+
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="Segoe UI, Arial" />
+        <Setter Property="Background" Value="{StaticResource InkGreenBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.display">
+        <Setter Property="FontFamily" Value="Georgia, Cambria, serif" />
+        <Setter Property="Foreground" Value="{StaticResource InkGreenBrush}" />
+        <Setter Property="LetterSpacing" Value="0" />
+    </Style>
+
+    <Style Selector="TextBlock.section-title">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource CreamBrush}" />
+        <Setter Property="LetterSpacing" Value="0" />
+    </Style>
+
+    <Style Selector="TextBlock.body">
+        <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="LineHeight" Value="21" />
+    </Style>
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{StaticResource CreamBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource SoftLineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="18" />
+    </Style>
+
+    <Style Selector="Border.dark-card">
+        <Setter Property="Background" Value="{StaticResource PetrolBrush}" />
+        <Setter Property="BorderBrush" Value="#335452" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="18" />
+    </Style>
+
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="13,8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="{StaticResource TerracottaBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource CreamBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource TerracottaBrush}" />
+    </Style>
+
+    <Style Selector="Button.secondary">
+        <Setter Property="Background" Value="#253F3D" />
+        <Setter Property="Foreground" Value="{StaticResource CreamBrush}" />
+        <Setter Property="BorderBrush" Value="#3A5A56" />
+    </Style>
+
+    <Style Selector="Button.nav">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="#DCC79D" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="13,10" />
+    </Style>
+
+    <Style Selector="Button.nav.active">
+        <Setter Property="Background" Value="#2B4744" />
+        <Setter Property="Foreground" Value="{StaticResource CreamBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.project-name">
+        <Setter Property="Background" Value="{StaticResource CreamBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource InkGreenBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource SoftLineBrush}" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="FontSize" Value="15" />
+    </Style>
+</Styles>
