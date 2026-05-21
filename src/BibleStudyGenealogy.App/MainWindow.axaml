@@ -63,133 +63,90 @@
                       Background="{StaticResource PetrolBrush}">
             <StackPanel Margin="34"
                         Spacing="24">
-                <Border Background="{StaticResource ParchmentBrush}"
-                        CornerRadius="8"
+                <Border CornerRadius="8"
                         ClipToBounds="True">
-                    <Grid MinHeight="300"
-                          ColumnDefinitions="1.15*,0.85*">
-                        <StackPanel Margin="34"
-                                    Spacing="18"
-                                    VerticalAlignment="Center">
-                            <TextBlock Text="Dashboard"
-                                       Foreground="{StaticResource TerracottaBrush}"
-                                       FontWeight="SemiBold"
-                                       FontSize="14" />
-                            <TextBlock Text="ScriptureLine"
-                                       Classes="display"
-                                       FontSize="54" />
-                            <TextBlock Text="Ein ruhiger Ort für Personen, Beziehungen, Orte, Bibelstellen und eigene Forschungsfragen."
-                                       Classes="body"
-                                       MaxWidth="520" />
-                            <TextBox x:Name="ProjectNameTextBox"
-                                     Classes="project-name"
-                                     Width="320"
-                                     HorizontalAlignment="Left"
-                                     PlaceholderText="Projektname"
-                                     Text="Mein Bibelprojekt" />
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="12">
-                                <Button Classes="primary"
-                                        Content="Neues Projekt"
-                                        Click="CreateProjectButton_Click" />
-                                <Button Classes="secondary"
-                                        Content="Projekt öffnen"
-                                        Click="OpenProjectButton_Click" />
+                    <Grid MinHeight="360">
+                        <Image Source="avares://BibleStudyGenealogy.App/Assets/Images/Dashboardpicture.png"
+                               Stretch="UniformToFill" />
+                        <Border Background="#FFF1D8CC"
+                                CornerRadius="8"
+                                Margin="34"
+                                Padding="28"
+                                MaxWidth="480"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Willkommen bei"
+                                           Classes="display"
+                                           FontSize="34"
+                                           Foreground="{StaticResource InkGreenBrush}" />
+                                <TextBlock Text="ScriptureLine"
+                                           Classes="display"
+                                           FontSize="58"
+                                           Foreground="{StaticResource TerracottaBrush}" />
+                                <TextBlock Text="Deine Reise durch die Heilige Schrift"
+                                           Foreground="{StaticResource InkGreenBrush}"
+                                           FontSize="19"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="„Dein Wort ist meines Fußes Leuchte und ein Licht auf meinem Wege.“"
+                                           Classes="body"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="Psalm 119:105"
+                                           Foreground="{StaticResource TerracottaBrush}"
+                                           FontWeight="SemiBold" />
+                                <TextBox x:Name="ProjectNameTextBox"
+                                         Classes="project-name"
+                                         Width="320"
+                                         HorizontalAlignment="Left"
+                                         PlaceholderText="Projektname"
+                                         Text="Mein Bibelprojekt" />
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="12">
+                                    <Button Classes="primary"
+                                            Content="Neues Projekt"
+                                            Click="CreateProjectButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="Projekt öffnen"
+                                            Click="OpenProjectButton_Click" />
+                                </StackPanel>
+                                <TextBlock x:Name="ProjectStatusText"
+                                           Text="Wähle einen Speicherort, um dein erstes lokales Studienprojekt anzulegen."
+                                           Classes="body"
+                                           TextWrapping="Wrap" />
                             </StackPanel>
-                            <TextBlock x:Name="ProjectStatusText"
-                                       Text="Wähle einen Speicherort, um dein erstes lokales Studienprojekt anzulegen."
-                                       Classes="body"
-                                       MaxWidth="520" />
-                        </StackPanel>
-
-                        <Canvas Grid.Column="1"
-                                ClipToBounds="True"
-                                Background="#F7E8C8">
-                            <Path Fill="#E8C583"
-                                  Data="M0,248 L70,150 L115,190 L190,88 L270,202 L360,122 L430,248 Z" />
-                            <Path Fill="#203A38"
-                                  Opacity="0.92"
-                                  Data="M0,300 L76,214 L124,240 L190,170 L250,236 L318,182 L430,300 Z" />
-                            <Path Fill="#142322"
-                                  Opacity="0.92"
-                                  Data="M0,300 L95,235 L158,255 L226,206 L292,262 L358,220 L430,300 Z" />
-                            <Rectangle Canvas.Left="285"
-                                       Canvas.Top="94"
-                                       Width="72"
-                                       Height="145"
-                                       Fill="{StaticResource TerracottaBrush}" />
-                            <Rectangle Canvas.Left="276"
-                                       Canvas.Top="78"
-                                       Width="90"
-                                       Height="24"
-                                       Fill="{StaticResource InkGreenBrush}" />
-                            <Ellipse Canvas.Left="286"
-                                     Canvas.Top="43"
-                                     Width="70"
-                                     Height="58"
-                                     Fill="{StaticResource TerracottaBrush}" />
-                            <Rectangle Canvas.Left="304"
-                                       Canvas.Top="122"
-                                       Width="14"
-                                       Height="34"
-                                       Fill="{StaticResource InkGreenBrush}" />
-                            <Rectangle Canvas.Left="331"
-                                       Canvas.Top="122"
-                                       Width="14"
-                                       Height="34"
-                                       Fill="{StaticResource InkGreenBrush}" />
-                            <Rectangle Canvas.Left="311"
-                                       Canvas.Top="194"
-                                       Width="24"
-                                       Height="45"
-                                       Fill="{StaticResource InkGreenBrush}" />
-                            <Ellipse Canvas.Left="58"
-                                     Canvas.Top="224"
-                                     Width="8"
-                                     Height="8"
-                                     Fill="{StaticResource SageBrush}" />
-                            <Ellipse Canvas.Left="84"
-                                     Canvas.Top="224"
-                                     Width="8"
-                                     Height="8"
-                                     Fill="{StaticResource SageBrush}" />
-                            <Ellipse Canvas.Left="110"
-                                     Canvas.Top="224"
-                                     Width="8"
-                                     Height="8"
-                                     Fill="{StaticResource SageBrush}" />
-                        </Canvas>
+                        </Border>
                     </Grid>
                 </Border>
 
-                <Grid ColumnDefinitions="*,*,*,*"
+                <Grid ColumnDefinitions="1.05*,*,*,*"
                       ColumnSpacing="16">
                     <Border Grid.Column="0" Classes="card">
-                        <StackPanel Spacing="8">
+                        <StackPanel Spacing="9">
+                            <TextBlock Text="Projektübersicht" Foreground="{StaticResource InkGreenBrush}" FontSize="18" FontWeight="SemiBold" />
                             <TextBlock Text="Personen" Foreground="{StaticResource MutedTextBrush}" />
                             <TextBlock x:Name="PersonCountText" Text="0" Classes="display" FontSize="34" />
-                            <TextBlock Text="Noch keine Personen erfasst" Classes="body" FontSize="12" />
+                            <TextBlock Text="Orte, Ereignisse und Bibelstellen folgen in den nächsten Modulen." Classes="body" FontSize="12" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Classes="card">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Beziehungen" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBlock x:Name="RelationshipCountText" Text="0" Classes="display" FontSize="34" />
-                            <TextBlock Text="Familienlinien vorbereiten" Classes="body" FontSize="12" />
+                            <TextBlock Text="Zuletzt bearbeitet" Foreground="{StaticResource InkGreenBrush}" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock x:Name="LastEditedText" Text="Noch keine Person bearbeitet" Classes="body" TextWrapping="Wrap" />
+                            <Button Classes="secondary" Content="Erste Person anlegen" Click="CreatePersonButton_Click" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="2" Classes="card">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Orte" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBlock x:Name="PlaceCountText" Text="0" Classes="display" FontSize="34" />
-                            <TextBlock Text="Historische Namen sammeln" Classes="body" FontSize="12" />
+                            <TextBlock Text="Zeitleiste" Foreground="{StaticResource InkGreenBrush}" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Deine Zeitleiste ist noch leer." Classes="body" TextWrapping="Wrap" />
+                            <TextBlock x:Name="RelationshipCountText" Text="0 Beziehungen vorbereitet" Classes="body" FontSize="12" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="3" Classes="card">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Forschungsfragen" Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBlock x:Name="ResearchQuestionCountText" Text="0" Classes="display" FontSize="34" />
-                            <TextBlock Text="Offene Fragen sichtbar halten" Classes="body" FontSize="12" />
+                            <TextBlock Text="Karte" Foreground="{StaticResource InkGreenBrush}" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock x:Name="PlaceCountText" Text="0 Orte" Classes="display" FontSize="34" />
+                            <TextBlock Text="Orte und Reisen werden später hier sichtbar." Classes="body" FontSize="12" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -292,6 +249,55 @@
                                 VerticalAlignment="Center" />
                     </Grid>
                 </Border>
+
+                <Grid ColumnDefinitions="*,*,1.35*"
+                      ColumnSpacing="18">
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Offene Aufgaben"
+                                       Foreground="{StaticResource InkGreenBrush}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Es gibt noch keine offenen Aufgaben."
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Forschungsfragen"
+                                       Foreground="{StaticResource InkGreenBrush}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold" />
+                            <TextBlock x:Name="ResearchQuestionCountText"
+                                       Text="0 offene Fragen"
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Schnellzugriff"
+                                       Foreground="{StaticResource InkGreenBrush}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="12">
+                                <Button x:Name="QuickAddPersonButton"
+                                        Classes="primary"
+                                        Content="Person anlegen"
+                                        Click="CreatePersonButton_Click"
+                                        IsEnabled="False" />
+                                <Button Classes="secondary"
+                                        Content="Ort anlegen"
+                                        IsEnabled="False" />
+                                <Button Classes="secondary"
+                                        Content="Notiz hinzufügen"
+                                        IsEnabled="False" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
                 <Grid ColumnDefinitions="0.9*,1.1*"
                       ColumnSpacing="18">

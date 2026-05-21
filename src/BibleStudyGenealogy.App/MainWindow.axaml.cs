@@ -159,8 +159,9 @@ public partial class MainWindow : Window
         PersonCountText.Text = statistics.PersonCount.ToString();
         RelationshipCountText.Text = statistics.RelationshipCount.ToString();
         PlaceCountText.Text = statistics.PlaceCount.ToString();
-        ResearchQuestionCountText.Text = statistics.ResearchQuestionCount.ToString();
+        ResearchQuestionCountText.Text = $"{statistics.ResearchQuestionCount} offene Fragen";
         CreatePersonButton.IsEnabled = true;
+        QuickAddPersonButton.IsEnabled = true;
         SavePersonButton.IsEnabled = true;
         PersonFormStatusText.Text = "Bereit für die erste Person.";
 
@@ -230,6 +231,9 @@ public partial class MainWindow : Window
 
         var statistics = await _projectService.ReadStatisticsAsync(_currentWorkspace);
         PersonCountText.Text = statistics.PersonCount.ToString();
+        LastEditedText.Text = _currentPerson is null
+            ? "Noch keine Person bearbeitet"
+            : $"{_currentPerson.MainName} wurde zuletzt gespeichert.";
     }
 
     private void FillPersonFromForm(Person person)

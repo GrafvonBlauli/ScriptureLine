@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\BibleStudyGenealogy.Core\BibleStudyGenealogy.Core.csproj" />
     <ProjectReference Include="..\BibleStudyGenealogy.Infrastructure\BibleStudyGenealogy.Infrastructure.csproj" />
     <ProjectReference Include="..\BibleStudyGenealogy.Rendering\BibleStudyGenealogy.Rendering.csproj" />
