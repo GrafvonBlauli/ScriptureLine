@@ -68,6 +68,8 @@ public sealed class LocalProjectService : IProjectService
             throw new FileNotFoundException("Die Datenbank project.sqlite wurde nicht gefunden.", databasePath);
         }
 
+        await EnsureDatabaseSchemaAsync(databasePath, cancellationToken);
+
         var metadataJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
         var metadata = JsonSerializer.Deserialize<ProjectMetadata>(metadataJson, JsonOptions)
             ?? throw new InvalidOperationException("Die Projektdatei manifest.json konnte nicht gelesen werden.");
@@ -88,11 +90,13 @@ public sealed class LocalProjectService : IProjectService
         ArgumentNullException.ThrowIfNull(workspace);
 
         var personRepository = new PersonRepository(workspace.DatabasePath);
+        var relationshipRepository = new RelationshipRepository(workspace.DatabasePath);
         var personCount = await personRepository.CountAsync(cancellationToken);
+        var relationshipCount = await relationshipRepository.CountAsync(cancellationToken);
 
         return new ProjectStatistics(
             personCount,
-            RelationshipCount: 0,
+            relationshipCount,
             PlaceCount: 0,
             ResearchQuestionCount: 0);
     }
@@ -150,43 +154,7 @@ public sealed class LocalProjectService : IProjectService
         await connection.OpenAsync(cancellationToken);
 
         await using var schemaCommand = connection.CreateCommand();
-        schemaCommand.CommandText = """
-            PRAGMA user_version = 1;
-
-            CREATE TABLE IF NOT EXISTS ProjectSettings (
-                Id INTEGER PRIMARY KEY CHECK (Id = 1),
-                ProjectName TEXT NOT NULL,
-                Description TEXT NOT NULL,
-                Language TEXT NOT NULL,
-                PreferredBibleTranslation TEXT NOT NULL,
-                CreatedAtUtc TEXT NOT NULL,
-                LastOpenedAtUtc TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS SchemaInfo (
-                Id INTEGER PRIMARY KEY CHECK (Id = 1),
-                SchemaVersion INTEGER NOT NULL,
-                AppliedAtUtc TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS Persons (
-                Id TEXT PRIMARY KEY,
-                MainName TEXT NOT NULL,
-                AlternativeNames TEXT NOT NULL DEFAULT '',
-                HebrewName TEXT NOT NULL DEFAULT '',
-                GreekName TEXT NOT NULL DEFAULT '',
-                NameMeaning TEXT NOT NULL DEFAULT '',
-                Gender TEXT NOT NULL,
-                PrimaryRole TEXT NOT NULL DEFAULT '',
-                Occupation TEXT NOT NULL DEFAULT '',
-                ShortDescription TEXT NOT NULL DEFAULT '',
-                LongDescription TEXT NOT NULL DEFAULT '',
-                PortraitMediaFileId TEXT NULL,
-                Status TEXT NOT NULL,
-                CreatedAtUtc TEXT NOT NULL,
-                UpdatedAtUtc TEXT NOT NULL
-            );
-            """;
+        schemaCommand.CommandText = SchemaSql;
         await schemaCommand.ExecuteNonQueryAsync(cancellationToken);
 
         await using var insertCommand = connection.CreateCommand();
@@ -279,6 +247,16 @@ public sealed class LocalProjectService : IProjectService
         await File.WriteAllTextAsync(manifestPath, metadataJson, cancellationToken);
     }
 
+    private static async Task EnsureDatabaseSchemaAsync(string databasePath, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
+        await connection.OpenAsync(cancellationToken);
+
+        await using var schemaCommand = connection.CreateCommand();
+        schemaCommand.CommandText = SchemaSql;
+        await schemaCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static string CreateConnectionString(string databasePath)
     {
         var builder = new SqliteConnectionStringBuilder
@@ -289,5 +267,62 @@ public sealed class LocalProjectService : IProjectService
 
         return builder.ToString();
     }
+
+    private const string SchemaSql = """
+        PRAGMA user_version = 1;
+
+        CREATE TABLE IF NOT EXISTS ProjectSettings (
+            Id INTEGER PRIMARY KEY CHECK (Id = 1),
+            ProjectName TEXT NOT NULL,
+            Description TEXT NOT NULL,
+            Language TEXT NOT NULL,
+            PreferredBibleTranslation TEXT NOT NULL,
+            CreatedAtUtc TEXT NOT NULL,
+            LastOpenedAtUtc TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS SchemaInfo (
+            Id INTEGER PRIMARY KEY CHECK (Id = 1),
+            SchemaVersion INTEGER NOT NULL,
+            AppliedAtUtc TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS Persons (
+            Id TEXT PRIMARY KEY,
+            MainName TEXT NOT NULL,
+            AlternativeNames TEXT NOT NULL DEFAULT '',
+            HebrewName TEXT NOT NULL DEFAULT '',
+            GreekName TEXT NOT NULL DEFAULT '',
+            NameMeaning TEXT NOT NULL DEFAULT '',
+            Gender TEXT NOT NULL,
+            PrimaryRole TEXT NOT NULL DEFAULT '',
+            Occupation TEXT NOT NULL DEFAULT '',
+            ShortDescription TEXT NOT NULL DEFAULT '',
+            LongDescription TEXT NOT NULL DEFAULT '',
+            PortraitMediaFileId TEXT NULL,
+            Status TEXT NOT NULL,
+            CreatedAtUtc TEXT NOT NULL,
+            UpdatedAtUtc TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS Relationships (
+            Id TEXT PRIMARY KEY,
+            PersonAId TEXT NOT NULL,
+            PersonBId TEXT NOT NULL,
+            RelationshipType TEXT NOT NULL,
+            Direction TEXT NOT NULL,
+            CertaintyLevel TEXT NOT NULL,
+            SourceNote TEXT NOT NULL DEFAULT '',
+            Comment TEXT NOT NULL DEFAULT '',
+            CreatedAtUtc TEXT NOT NULL,
+            UpdatedAtUtc TEXT NOT NULL,
+            CHECK (PersonAId <> PersonBId),
+            FOREIGN KEY (PersonAId) REFERENCES Persons(Id),
+            FOREIGN KEY (PersonBId) REFERENCES Persons(Id)
+        );
+
+        CREATE INDEX IF NOT EXISTS IX_Relationships_PersonAId ON Relationships(PersonAId);
+        CREATE INDEX IF NOT EXISTS IX_Relationships_PersonBId ON Relationships(PersonBId);
+        """;
 
 }

@@ -2,7 +2,7 @@
 
 **Zweck:** Laufendes Protokoll der Arbeitsschritte an ScriptureLine.  
 **Zeitzone:** Europe/Berlin  
-**Zuletzt aktualisiert:** 2026-05-22 00:37:49 +02:00  
+**Zuletzt aktualisiert:** 2026-05-22 00:47:22 +02:00  
 **Aktueller Branch:** `main`  
 **GitHub-Remote:** `origin -> https://github.com/GrafvonBlauli/ScriptureLine.git`  
 
@@ -122,3 +122,12 @@
 **Remote:** `https://github.com/GrafvonBlauli/ScriptureLine.git`  
 **Ergebnis:** `main` trackt jetzt `origin/main`. GitHub meldete `4c667ad..d3415f3 main -> main`.  
 **Offene Punkte:** Diese Protokollaktualisierung wird als eigener kleiner Folgecommit gespeichert und anschließend erneut gepusht.
+
+### 2026-05-22 00:47:22 +02:00 - Beziehungsverwaltung umgesetzt
+
+**Kategorie:** Beziehungen / SQLite / UI / Tests  
+**Aktion:** Version 0.2-Grundlage für Beziehungen wurde implementiert. Personen können über Beziehungen verbunden werden.  
+**Geänderte Bereiche:** Core-Modelle `Relationship`, `RelationshipType`, `RelationshipDirection`; Infrastructure-Repositories `IRelationshipRepository`, `RelationshipRepository`; SQLite-Schema `Relationships`; Dashboard-/Personen-UI; Beziehungstests.  
+**Ergebnis:** Beziehungen können gespeichert, aktualisiert, für beide Personen geladen und als Familienliste sowie einfache Stammbaum-Vorschau angezeigt werden. Der Dashboard-Zähler für Beziehungen liest echte SQLite-Daten. Doppelte Beziehungen werden verhindert.  
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 9 Tests.  
+**Offene Punkte:** Commit `Add relationship management foundation` erstellen und nach GitHub pushen.

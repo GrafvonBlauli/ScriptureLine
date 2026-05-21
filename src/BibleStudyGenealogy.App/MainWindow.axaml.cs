@@ -13,13 +13,16 @@ public partial class MainWindow : Window
     private readonly IProjectService _projectService = new LocalProjectService();
     private readonly AppStateStore _appStateStore = new();
     private IPersonRepository? _personRepository;
+    private IRelationshipRepository? _relationshipRepository;
     private ProjectWorkspace? _currentWorkspace;
     private Person? _currentPerson;
+    private IReadOnlyList<Person> _people = Array.Empty<Person>();
 
     public MainWindow()
     {
         InitializeComponent();
         InitializePersonForm();
+        InitializeRelationshipForm();
         RestoreLastProject();
     }
 
@@ -128,6 +131,56 @@ public partial class MainWindow : Window
 
         FillFormFromPerson(_currentPerson);
         PersonFormStatusText.Text = "Person geladen.";
+        await RefreshRelationshipsAsync();
+    }
+
+    private async void SaveRelationshipButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_relationshipRepository is null || _currentPerson is null)
+        {
+            RelationshipFormStatusText.Text = "Wähle zuerst eine Person aus.";
+            return;
+        }
+
+        if (RelationshipTargetComboBox.SelectedItem is not PersonListItem targetPerson)
+        {
+            RelationshipFormStatusText.Text = "Bitte wähle eine zweite Person aus.";
+            return;
+        }
+
+        if (targetPerson.Id == _currentPerson.Id)
+        {
+            RelationshipFormStatusText.Text = "Eine Person kann nicht mit sich selbst verknüpft werden.";
+            return;
+        }
+
+        var relationship = new Relationship
+        {
+            PersonAId = _currentPerson.Id,
+            PersonBId = targetPerson.Id,
+            RelationshipType = (RelationshipTypeComboBox.SelectedItem as EnumDisplay<RelationshipType>)?.Value
+                ?? RelationshipType.UnknownRelated,
+            Direction = (RelationshipDirectionComboBox.SelectedItem as EnumDisplay<RelationshipDirection>)?.Value
+                ?? RelationshipDirection.Undirected,
+            CertaintyLevel = (RelationshipCertaintyComboBox.SelectedItem as EnumDisplay<CertaintyLevel>)?.Value
+                ?? CertaintyLevel.Unknown,
+            SourceNote = RelationshipSourceNoteTextBox.Text?.Trim() ?? string.Empty,
+            Comment = RelationshipCommentTextBox.Text?.Trim() ?? string.Empty
+        };
+
+        try
+        {
+            await _relationshipRepository.SaveAsync(relationship);
+            RelationshipFormStatusText.Text = "Beziehung wurde gespeichert.";
+            RelationshipSourceNoteTextBox.Text = string.Empty;
+            RelationshipCommentTextBox.Text = string.Empty;
+            await RefreshRelationshipsAsync();
+            await RefreshStatisticsAsync();
+        }
+        catch (Exception exception)
+        {
+            RelationshipFormStatusText.Text = $"Beziehung konnte nicht gespeichert werden: {exception.Message}";
+        }
     }
 
     private async Task<string?> PickFolderAsync(string title)
@@ -147,6 +200,7 @@ public partial class MainWindow : Window
     {
         _currentWorkspace = workspace;
         _personRepository = new PersonRepository(workspace.DatabasePath);
+        _relationshipRepository = new RelationshipRepository(workspace.DatabasePath);
         var statistics = await _projectService.ReadStatisticsAsync(workspace);
 
         SidebarProjectTitle.Text = workspace.Settings.ProjectName;
@@ -163,9 +217,11 @@ public partial class MainWindow : Window
         CreatePersonButton.IsEnabled = true;
         QuickAddPersonButton.IsEnabled = true;
         SavePersonButton.IsEnabled = true;
+        SaveRelationshipButton.IsEnabled = true;
         PersonFormStatusText.Text = "Bereit für die erste Person.";
 
         await RefreshPeopleAsync();
+        await RefreshRelationshipsAsync();
         await _appStateStore.SaveAsync(new AppState(workspace.RootDirectory));
     }
 
@@ -204,6 +260,43 @@ public partial class MainWindow : Window
         PersonStatusComboBox.SelectedIndex = 0;
     }
 
+    private void InitializeRelationshipForm()
+    {
+        RelationshipTypeComboBox.ItemsSource = new[]
+        {
+            new EnumDisplay<RelationshipType>(RelationshipType.ParentChild, "Eltern-Kind"),
+            new EnumDisplay<RelationshipType>(RelationshipType.Spouse, "Partner / Ehe"),
+            new EnumDisplay<RelationshipType>(RelationshipType.Sibling, "Geschwister"),
+            new EnumDisplay<RelationshipType>(RelationshipType.AdoptiveParent, "Adoptivbeziehung"),
+            new EnumDisplay<RelationshipType>(RelationshipType.LegalParent, "rechtliche Elternschaft"),
+            new EnumDisplay<RelationshipType>(RelationshipType.TribeMember, "Stammeszugehörigkeit"),
+            new EnumDisplay<RelationshipType>(RelationshipType.UnknownRelated, "unbekannt verwandt"),
+            new EnumDisplay<RelationshipType>(RelationshipType.Custom, "benutzerdefiniert")
+        };
+
+        RelationshipDirectionComboBox.ItemsSource = new[]
+        {
+            new EnumDisplay<RelationshipDirection>(RelationshipDirection.Undirected, "ungerichtet"),
+            new EnumDisplay<RelationshipDirection>(RelationshipDirection.PersonAToPersonB, "aktuelle Person -> Zielperson"),
+            new EnumDisplay<RelationshipDirection>(RelationshipDirection.PersonBToPersonA, "Zielperson -> aktuelle Person")
+        };
+
+        RelationshipCertaintyComboBox.ItemsSource = new[]
+        {
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.ExplicitlyMentioned, "ausdrücklich erwähnt"),
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Likely, "wahrscheinlich"),
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Possible, "möglich"),
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Traditional, "traditionell angenommen"),
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Disputed, "umstritten"),
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.UserHypothesis, "eigene Arbeitshypothese"),
+            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Unknown, "unbekannt")
+        };
+
+        RelationshipTypeComboBox.SelectedIndex = 0;
+        RelationshipDirectionComboBox.SelectedIndex = 0;
+        RelationshipCertaintyComboBox.SelectedIndex = 6;
+    }
+
     private async Task RefreshPeopleAsync()
     {
         if (_personRepository is null)
@@ -213,13 +306,43 @@ public partial class MainWindow : Window
             return;
         }
 
-        var people = await _personRepository.SearchAsync(PersonSearchTextBox.Text ?? string.Empty);
-        PeopleListBox.ItemsSource = people
+        _people = await _personRepository.SearchAsync(PersonSearchTextBox.Text ?? string.Empty);
+        PeopleListBox.ItemsSource = _people
             .Select(person => new PersonListItem(person.Id, person.MainName, person.PrimaryRole))
             .ToList();
-        PeopleEmptyText.Text = people.Count == 0
+        RelationshipTargetComboBox.ItemsSource = _people
+            .Where(person => _currentPerson is null || person.Id != _currentPerson.Id)
+            .Select(person => new PersonListItem(person.Id, person.MainName, person.PrimaryRole))
+            .ToList();
+        PeopleEmptyText.Text = _people.Count == 0
             ? "Noch keine passenden Personen gefunden."
-            : $"{people.Count} Person(en) gefunden.";
+            : $"{_people.Count} Person(en) gefunden.";
+    }
+
+    private async Task RefreshRelationshipsAsync()
+    {
+        if (_relationshipRepository is null || _currentPerson is null)
+        {
+            RelationshipsListBox.ItemsSource = Array.Empty<RelationshipListItem>();
+            RelationshipsEmptyText.Text = "Wähle eine Person aus, um Beziehungen zu sehen.";
+            TreePreviewText.Text = "Wähle eine Person aus, um Eltern, Partner und Kinder als einfache Vorschau zu sehen.";
+            return;
+        }
+
+        var relationships = await _relationshipRepository.GetForPersonAsync(_currentPerson.Id);
+        var relationshipItems = relationships
+            .Select(relationship => CreateRelationshipListItem(_currentPerson.Id, relationship))
+            .ToList();
+
+        RelationshipsListBox.ItemsSource = relationshipItems;
+        RelationshipsEmptyText.Text = relationshipItems.Count == 0
+            ? "Für diese Person sind noch keine Beziehungen erfasst."
+            : $"{relationshipItems.Count} Beziehung(en) erfasst.";
+        RelationshipTargetComboBox.ItemsSource = _people
+            .Where(person => person.Id != _currentPerson.Id)
+            .Select(person => new PersonListItem(person.Id, person.MainName, person.PrimaryRole))
+            .ToList();
+        TreePreviewText.Text = BuildTreePreviewText(_currentPerson.Id, relationships);
     }
 
     private async Task RefreshStatisticsAsync()
@@ -231,6 +354,7 @@ public partial class MainWindow : Window
 
         var statistics = await _projectService.ReadStatisticsAsync(_currentWorkspace);
         PersonCountText.Text = statistics.PersonCount.ToString();
+        RelationshipCountText.Text = $"{statistics.RelationshipCount} Beziehungen vorbereitet";
         LastEditedText.Text = _currentPerson is null
             ? "Noch keine Person bearbeitet"
             : $"{_currentPerson.MainName} wurde zuletzt gespeichert.";
@@ -264,6 +388,107 @@ public partial class MainWindow : Window
         LongDescriptionTextBox.Text = person.LongDescription;
         SelectEnumValue(GenderComboBox, person.Gender);
         SelectEnumValue(PersonStatusComboBox, person.Status);
+    }
+
+    private RelationshipListItem CreateRelationshipListItem(Guid currentPersonId, Relationship relationship)
+    {
+        var otherPersonId = relationship.PersonAId == currentPersonId
+            ? relationship.PersonBId
+            : relationship.PersonAId;
+        var otherPersonName = FindPersonName(otherPersonId);
+        var certainty = DisplayCertainty(relationship.CertaintyLevel);
+        var type = DisplayRelationshipType(relationship.RelationshipType);
+
+        return new RelationshipListItem(
+            relationship.Id,
+            $"{type}: {otherPersonName} ({certainty})",
+            relationship.Comment);
+    }
+
+    private string BuildTreePreviewText(Guid currentPersonId, IReadOnlyList<Relationship> relationships)
+    {
+        var parents = new List<string>();
+        var partners = new List<string>();
+        var children = new List<string>();
+
+        foreach (var relationship in relationships)
+        {
+            var otherPersonId = relationship.PersonAId == currentPersonId
+                ? relationship.PersonBId
+                : relationship.PersonAId;
+            var name = FindPersonName(otherPersonId);
+
+            if (relationship.RelationshipType == RelationshipType.Spouse)
+            {
+                partners.Add(name);
+                continue;
+            }
+
+            if (relationship.RelationshipType != RelationshipType.ParentChild)
+            {
+                continue;
+            }
+
+            if (IsCurrentPersonParent(currentPersonId, relationship))
+            {
+                children.Add(name);
+            }
+            else
+            {
+                parents.Add(name);
+            }
+        }
+
+        return $"Eltern: {FormatTreeGroup(parents)} | Partner: {FormatTreeGroup(partners)} | Kinder: {FormatTreeGroup(children)}";
+    }
+
+    private static bool IsCurrentPersonParent(Guid currentPersonId, Relationship relationship)
+    {
+        return relationship.Direction switch
+        {
+            RelationshipDirection.PersonAToPersonB => relationship.PersonAId == currentPersonId,
+            RelationshipDirection.PersonBToPersonA => relationship.PersonBId == currentPersonId,
+            _ => false
+        };
+    }
+
+    private string FindPersonName(Guid personId)
+    {
+        return _people.FirstOrDefault(person => person.Id == personId)?.MainName ?? "Unbekannte Person";
+    }
+
+    private static string FormatTreeGroup(IReadOnlyCollection<string> names)
+    {
+        return names.Count == 0 ? "keine" : string.Join(", ", names);
+    }
+
+    private static string DisplayRelationshipType(RelationshipType relationshipType)
+    {
+        return relationshipType switch
+        {
+            RelationshipType.ParentChild => "Eltern-Kind",
+            RelationshipType.Spouse => "Partner / Ehe",
+            RelationshipType.Sibling => "Geschwister",
+            RelationshipType.AdoptiveParent => "Adoptivbeziehung",
+            RelationshipType.LegalParent => "rechtliche Elternschaft",
+            RelationshipType.TribeMember => "Stammeszugehörigkeit",
+            RelationshipType.Custom => "benutzerdefiniert",
+            _ => "unbekannt verwandt"
+        };
+    }
+
+    private static string DisplayCertainty(CertaintyLevel certaintyLevel)
+    {
+        return certaintyLevel switch
+        {
+            CertaintyLevel.ExplicitlyMentioned => "ausdrücklich erwähnt",
+            CertaintyLevel.Likely => "wahrscheinlich",
+            CertaintyLevel.Possible => "möglich",
+            CertaintyLevel.Traditional => "traditionell angenommen",
+            CertaintyLevel.Disputed => "umstritten",
+            CertaintyLevel.UserHypothesis => "eigene Arbeitshypothese",
+            _ => "unbekannt"
+        };
     }
 
     private void ClearPersonForm()
@@ -331,6 +556,16 @@ public partial class MainWindow : Window
             return string.IsNullOrWhiteSpace(PrimaryRole)
                 ? MainName
                 : $"{MainName} - {PrimaryRole}";
+        }
+    }
+
+    private sealed record RelationshipListItem(Guid Id, string Title, string Comment)
+    {
+        public override string ToString()
+        {
+            return string.IsNullOrWhiteSpace(Comment)
+                ? Title
+                : $"{Title} - {Comment}";
         }
     }
 

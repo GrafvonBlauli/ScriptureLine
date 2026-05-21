@@ -236,7 +236,8 @@
                         <StackPanel Spacing="7">
                             <TextBlock Text="Stammbaum-Vorschau"
                                        Classes="section-title" />
-                            <TextBlock Text="Personenkarten werden später im Pergamentstil verbunden. Sichere Linien bleiben klar, unsichere Beziehungen werden gedämpft oder gestrichelt dargestellt."
+                            <TextBlock x:Name="TreePreviewText"
+                                       Text="Wähle eine Person aus, um Eltern, Partner und Kinder als einfache Vorschau zu sehen."
                                        Foreground="#BDAE8D"
                                        TextWrapping="Wrap" />
                         </StackPanel>
@@ -398,6 +399,57 @@
                             </StackPanel>
                             <TextBlock x:Name="PersonFormStatusText"
                                        Text="Öffne oder erstelle zuerst ein Projekt."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="1.05*,0.95*"
+                      ColumnSpacing="18">
+                    <Border Classes="card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Familie"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBlock Text="Beziehungen der ausgewählten Person"
+                                       Classes="body" />
+                            <ListBox x:Name="RelationshipsListBox"
+                                     MinHeight="180" />
+                            <TextBlock x:Name="RelationshipsEmptyText"
+                                       Text="Wähle eine Person aus, um Beziehungen zu sehen."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Beziehung anlegen"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <ComboBox x:Name="RelationshipTargetComboBox"
+                                      Classes="project-name" />
+                            <ComboBox x:Name="RelationshipTypeComboBox"
+                                      Classes="project-name" />
+                            <ComboBox x:Name="RelationshipDirectionComboBox"
+                                      Classes="project-name" />
+                            <ComboBox x:Name="RelationshipCertaintyComboBox"
+                                      Classes="project-name" />
+                            <TextBox x:Name="RelationshipSourceNoteTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Quelle oder Bibelstelle" />
+                            <TextBox x:Name="RelationshipCommentTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Kommentar"
+                                     MinHeight="70"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap" />
+                            <Button x:Name="SaveRelationshipButton"
+                                    Classes="primary"
+                                    Content="Beziehung speichern"
+                                    Click="SaveRelationshipButton_Click"
+                                    IsEnabled="False" />
+                            <TextBlock x:Name="RelationshipFormStatusText"
+                                       Text="Wähle zuerst eine Person aus."
                                        Classes="body" />
                         </StackPanel>
                     </Border>
