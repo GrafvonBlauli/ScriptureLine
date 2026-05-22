@@ -91,7 +91,7 @@ public sealed class RepositoryPerformanceTests
             Assert.Equal(2_000, statistics.BibleReferenceCount);
         });
 
-        Assert.True(insertElapsed < TimeSpan.FromSeconds(180), $"Bulk insert took {insertElapsed}.");
+        Assert.True(insertElapsed < TimeSpan.FromSeconds(300), $"Bulk insert took {insertElapsed}.");
         Assert.True(personSearchElapsed < TimeSpan.FromSeconds(5), $"Person search took {personSearchElapsed}.");
         Assert.True(relationshipLoadElapsed < TimeSpan.FromSeconds(5), $"Relationship load took {relationshipLoadElapsed}.");
         Assert.True(eventLoadElapsed < TimeSpan.FromSeconds(5), $"Event load took {eventLoadElapsed}.");

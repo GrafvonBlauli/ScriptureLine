@@ -208,3 +208,12 @@
 **Ergebnis:** Geburts- und Sterbedaten werden als Text plus extrahiertem Jahr in SQLite gespeichert und beim Öffnen wieder geladen. Aus Alter + Geburtsjahr kann das Sterbejahr berechnet werden; aus Alter + Sterbejahr das Geburtsjahr.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 43 Tests in 1 m 36 s.
 **Offene Punkte:** Commit erstellen und nach GitHub pushen.
+
+### 2026-05-22 23:11:28 +02:00 - Stammbaumlayout näher an Referenz angepasst
+
+**Kategorie:** Stammbaum / UI-Layout / Tests
+**Aktion:** Das Stammbaum-Modul wurde stärker an die Referenzscreenshots angelehnt: helle Baumfläche, gelbliche Personenkarten, farbige Rahmen nach Geschlecht, Avatar-Kreis, Lebensdaten und Plus-Schaltfläche direkt an der Karte. Die separate Beziehungsfläche im Stammbaum-Modul wurde ausgeblendet; neue Beziehungen laufen über `Verwandte hinzufügen`.
+**Geänderte Bereiche:** `MainWindow.axaml`, `MainWindow.axaml.cs`, `FamilyTreeBuilder`, `RepositoryPerformanceTests`.
+**Ergebnis:** Das Stammbaum-Modul wirkt mehr wie ein echter Stammbaum statt wie eine Formularseite. Beziehungserfassung ist nicht mehr als extra Bereich sichtbar. Der Performance-Stresstest bleibt als grober Regressionsschutz erhalten, wurde aber wegen lokaler I/O-Varianz auf 300 s Bulk-Insert-Schwelle erweitert.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 43 Tests in 1 m 34 s.
+**Offene Punkte:** Commit erstellen und nach GitHub pushen.

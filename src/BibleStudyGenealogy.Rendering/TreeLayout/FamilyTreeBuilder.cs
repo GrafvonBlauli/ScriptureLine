@@ -4,8 +4,8 @@ namespace BibleStudyGenealogy.Rendering.TreeLayout;
 
 public sealed class FamilyTreeBuilder
 {
-    private const double NodeWidth = 150;
-    private const double NodeHeight = 72;
+    private const double NodeWidth = 176;
+    private const double NodeHeight = 92;
     private const double HorizontalGap = 34;
     private const double VerticalGap = 118;
     private const double CanvasPadding = 90;

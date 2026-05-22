@@ -569,8 +569,8 @@
                             <Grid Grid.Row="1"
                                   ColumnDefinitions="*,360"
                                   ColumnSpacing="16">
-                                <Border Background="#F8EBD0"
-                                        BorderBrush="{StaticResource SoftLineBrush}"
+                                <Border Background="#EEEEEC"
+                                        BorderBrush="#D6D2C8"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         ClipToBounds="True">
@@ -580,14 +580,14 @@
                                         <Canvas x:Name="FamilyTreeCanvas"
                                                 Width="900"
                                                 Height="520"
-                                                Background="#F8EBD0"
+                                                Background="#EEEEEC"
                                                 PointerWheelChanged="FamilyTreeCanvas_PointerWheelChanged" />
                                     </ScrollViewer>
                                 </Border>
 
                                 <Border Grid.Column="1"
-                                        Background="{StaticResource ParchmentTintBrush}"
-                                        BorderBrush="{StaticResource SoftLineBrush}"
+                                        Background="#FAFAF7"
+                                        BorderBrush="#D6D2C8"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Padding="14">
@@ -661,13 +661,13 @@
 
                         <Border x:Name="AddRelativeOverlay"
                                 IsVisible="False"
-                                Background="#99203A38"
+                                Background="#CC1B1E1E"
                                 CornerRadius="8">
-                            <Border Width="460"
+                            <Border Width="520"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    Background="{StaticResource CreamBrush}"
-                                    BorderBrush="{StaticResource SoftLineBrush}"
+                                    Background="#FAFAF7"
+                                    BorderBrush="#D6D2C8"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="20">
@@ -676,6 +676,9 @@
                                                Text="Verwandte hinzufügen"
                                                Classes="display"
                                                FontSize="26" />
+                                    <TextBlock Text="Wähle die Beziehung zur Person im Baum. Die Beziehung wird gemeinsam mit der neuen Person angelegt."
+                                               Classes="body"
+                                               TextWrapping="Wrap" />
                                     <ComboBox x:Name="AddRelativeTypeComboBox"
                                               Classes="project-name" />
                                     <TextBox x:Name="AddRelativeNameTextBox"

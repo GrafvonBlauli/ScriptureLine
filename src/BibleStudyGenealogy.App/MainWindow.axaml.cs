@@ -117,7 +117,7 @@ public partial class MainWindow : Window
         DashboardActionsView.IsVisible = dashboardVisible;
 
         PeopleView.IsVisible = module == AppModule.People;
-        RelationshipsView.IsVisible = module == AppModule.FamilyTree;
+        RelationshipsView.IsVisible = false;
         FamilyTreeView.IsVisible = module == AppModule.FamilyTree;
         TimelineView.IsVisible = module == AppModule.Timeline;
         EventsView.IsVisible = module == AppModule.Events;
@@ -1314,8 +1314,8 @@ public partial class MainWindow : Window
 
             var line = new Line
             {
-                StartPoint = ScalePoint(fromNode.X + 75, fromNode.Y + 36),
-                EndPoint = ScalePoint(toNode.X + 75, toNode.Y + 36),
+                StartPoint = ScalePoint(fromNode.X + 88, fromNode.Y + 46),
+                EndPoint = ScalePoint(toNode.X + 88, toNode.Y + 46),
                 Stroke = link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
                 StrokeThickness = link.IsUncertain ? 1.5 : 2.2
             };
@@ -1331,7 +1331,7 @@ public partial class MainWindow : Window
         {
             var card = CreateTreePersonCard(node);
             Canvas.SetLeft(card, node.X * _familyTreeZoom);
-            Canvas.SetTop(card, node.Y * _familyTreeZoom);
+            Canvas.SetTop(card, node.Y * _familyTreeZoom - (6 * _familyTreeZoom));
             FamilyTreeCanvas.Children.Add(card);
         }
     }
@@ -1343,20 +1343,13 @@ public partial class MainWindow : Window
 
     private Control CreateTreePersonCard(FamilyTreeDiagramNode node)
     {
-        var borderBrush = node.Kind switch
-        {
-            FamilyTreeNodeKind.Focus => Brushes.DarkOrange,
-            FamilyTreeNodeKind.Parent => Brushes.SeaGreen,
-            FamilyTreeNodeKind.Partner => Brushes.IndianRed,
-            FamilyTreeNodeKind.Sibling => Brushes.SteelBlue,
-            FamilyTreeNodeKind.Child => Brushes.Teal,
-            _ => Brushes.Gray
-        };
-        var background = node.IsUncertain ? new SolidColorBrush(Color.Parse("#E6D8BF")) : new SolidColorBrush(Color.Parse("#FAE8BC"));
+        var person = _treePeople.FirstOrDefault(person => person.Id == node.PersonId);
+        var borderBrush = GetTreeCardBorderBrush(person, node);
+        var background = node.IsUncertain ? new SolidColorBrush(Color.Parse("#F1E2B9")) : new SolidColorBrush(Color.Parse("#FDE8A8"));
         var cardButton = new Button
         {
-            Width = 150 * _familyTreeZoom,
-            Height = 72 * _familyTreeZoom,
+            Width = 176 * _familyTreeZoom,
+            Height = 92 * _familyTreeZoom,
             Padding = new Thickness(0),
             Background = background,
             BorderBrush = borderBrush,
@@ -1365,49 +1358,114 @@ public partial class MainWindow : Window
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("*,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("48,*,Auto"),
             Margin = new Thickness(8 * _familyTreeZoom)
+        };
+        var avatar = new Border
+        {
+            Width = 42 * _familyTreeZoom,
+            Height = 42 * _familyTreeZoom,
+            CornerRadius = new CornerRadius(21 * _familyTreeZoom),
+            Background = Brushes.White,
+            BorderBrush = Brushes.LightGray,
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = GetAvatarGlyph(person),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                FontSize = 22 * _familyTreeZoom,
+                Foreground = Brushes.LightGray
+            }
         };
         var nameText = new TextBlock
         {
             Text = node.DisplayName,
-            Foreground = Brushes.DarkSlateGray,
+            Foreground = Brushes.Black,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 13 * _familyTreeZoom,
+            FontSize = 12 * _familyTreeZoom,
             TextWrapping = TextWrapping.Wrap
         };
-        var person = _treePeople.FirstOrDefault(person => person.Id == node.PersonId);
-        var roleText = new TextBlock
+        var birthText = new TextBlock
         {
-            Text = person is null ? DisplayTreeNodeKind(node.Kind) : FormatTreeCardDetail(person, node.Kind),
+            Text = person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 10 * _familyTreeZoom,
-            TextWrapping = TextWrapping.Wrap
+            FontSize = 10.5 * _familyTreeZoom
+        };
+        var deathText = new TextBlock
+        {
+            Text = person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
+            Foreground = Brushes.DimGray,
+            FontSize = 10.5 * _familyTreeZoom
+        };
+        var editText = new TextBlock
+        {
+            Text = "✎",
+            Foreground = Brushes.DimGray,
+            FontSize = 15 * _familyTreeZoom,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
         var plusButton = new Button
         {
             Content = "+",
-            Width = 24 * _familyTreeZoom,
-            Height = 24 * _familyTreeZoom,
+            Width = 32 * _familyTreeZoom,
+            Height = 22 * _familyTreeZoom,
             Padding = new Thickness(0),
-            FontSize = 12 * _familyTreeZoom
+            FontSize = 17 * _familyTreeZoom,
+            Background = Brushes.White,
+            BorderBrush = Brushes.Transparent,
+            Foreground = Brushes.Black
         };
         plusButton.Click += (_, _) => OpenRelativeOverlay(node.PersonId);
         cardButton.Click += (_, _) => SelectTreePerson(node.PersonId);
 
+        Grid.SetRowSpan(avatar, 3);
+        Grid.SetColumn(avatar, 0);
         Grid.SetRow(nameText, 0);
-        Grid.SetColumn(nameText, 0);
-        Grid.SetRow(roleText, 1);
-        Grid.SetColumn(roleText, 0);
-        Grid.SetRow(plusButton, 0);
+        Grid.SetColumn(nameText, 1);
+        Grid.SetColumnSpan(nameText, 2);
+        Grid.SetRow(birthText, 1);
+        Grid.SetColumn(birthText, 1);
+        Grid.SetRow(deathText, 2);
+        Grid.SetColumn(deathText, 1);
+        Grid.SetRow(editText, 2);
+        Grid.SetColumn(editText, 2);
+        Grid.SetRow(plusButton, 3);
         Grid.SetColumn(plusButton, 1);
-        Grid.SetRowSpan(plusButton, 2);
         grid.Children.Add(nameText);
-        grid.Children.Add(roleText);
+        grid.Children.Add(avatar);
+        grid.Children.Add(birthText);
+        grid.Children.Add(deathText);
+        grid.Children.Add(editText);
         grid.Children.Add(plusButton);
         cardButton.Content = grid;
         return cardButton;
+    }
+
+    private static IBrush GetTreeCardBorderBrush(Person? person, FamilyTreeDiagramNode node)
+    {
+        if (node.IsUncertain)
+        {
+            return Brushes.Gray;
+        }
+
+        return person?.Gender switch
+        {
+            Gender.Male => new SolidColorBrush(Color.Parse("#00A8C8")),
+            Gender.Female => new SolidColorBrush(Color.Parse("#FF6B6B")),
+            _ => new SolidColorBrush(Color.Parse("#D7A65A"))
+        };
+    }
+
+    private static string GetAvatarGlyph(Person? person)
+    {
+        return person?.Gender switch
+        {
+            Gender.Male => "♂",
+            Gender.Female => "♀",
+            _ => "○"
+        };
     }
 
     private void SelectTreePerson(Guid personId)
