@@ -18,16 +18,20 @@ public partial class MainWindow : Window
     private IRelationshipRepository? _relationshipRepository;
     private IEventRepository? _eventRepository;
     private IBibleReferenceRepository? _bibleReferenceRepository;
+    private IMediaRepository? _mediaRepository;
     private readonly FamilyTreeBuilder _familyTreeBuilder = new();
+    private readonly MediaImportService _mediaImportService = new();
     private ProjectWorkspace? _currentWorkspace;
     private Person? _currentPerson;
     private bool _isCurrentPersonPersisted;
     private Relationship? _currentRelationship;
     private ScriptureEvent? _currentEvent;
     private BibleReference? _currentBibleReference;
+    private MediaFile? _currentMediaFile;
     private IReadOnlyList<Person> _people = Array.Empty<Person>();
     private IReadOnlyList<Relationship> _currentRelationships = Array.Empty<Relationship>();
     private IReadOnlyList<ScriptureEvent> _currentEvents = Array.Empty<ScriptureEvent>();
+    private IReadOnlyList<MediaFile> _mediaFiles = Array.Empty<MediaFile>();
 
     public MainWindow()
     {
@@ -151,6 +155,7 @@ public partial class MainWindow : Window
         PersonFormStatusText.Text = "Person geladen.";
         await RefreshRelationshipsAsync();
         await RefreshEventsAsync();
+        await RefreshMediaFilesAsync();
     }
 
     private async void SaveRelationshipButton_Click(object? sender, RoutedEventArgs e)
@@ -296,6 +301,7 @@ public partial class MainWindow : Window
 
         FillEventForm(_currentEvent);
         EventFormStatusText.Text = "Ereignis geladen und kann bearbeitet werden.";
+        UpdateMediaActionButtons();
     }
 
     private async void SaveBibleReferenceButton_Click(object? sender, RoutedEventArgs e)
@@ -346,6 +352,135 @@ public partial class MainWindow : Window
         BibleReferenceFormStatusText.Text = "Bibelstelle geladen und kann bearbeitet werden.";
     }
 
+    private async void MediaSearchTextBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        await RefreshMediaFilesAsync();
+    }
+
+    private async void ImportMediaButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_currentWorkspace is null || _mediaRepository is null)
+        {
+            MediaFormStatusText.Text = "Öffne oder erstelle zuerst ein Projekt.";
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Datei in die Mediathek importieren",
+            AllowMultiple = false
+        });
+
+        var sourcePath = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (sourcePath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var mediaFile = await _mediaImportService.ImportAsync(
+                _currentWorkspace,
+                sourcePath,
+                MediaDescriptionTextBox.Text ?? string.Empty);
+            await _mediaRepository.SaveAsync(mediaFile);
+            _currentMediaFile = mediaFile;
+            MediaFormStatusText.Text = "Datei wurde in das Projekt importiert.";
+            await RefreshMediaFilesAsync();
+            await RefreshStatisticsAsync();
+            FillMediaForm(mediaFile);
+        }
+        catch (Exception exception)
+        {
+            MediaFormStatusText.Text = $"Datei konnte nicht importiert werden: {exception.Message}";
+        }
+    }
+
+    private async void SaveMediaButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mediaRepository is null || _currentMediaFile is null)
+        {
+            MediaFormStatusText.Text = "Wähle zuerst ein Medium aus.";
+            return;
+        }
+
+        _currentMediaFile.Description = MediaDescriptionTextBox.Text?.Trim() ?? string.Empty;
+        await _mediaRepository.SaveAsync(_currentMediaFile);
+        MediaFormStatusText.Text = "Medium wurde gespeichert.";
+        await RefreshMediaFilesAsync();
+    }
+
+    private async void MediaFilesListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (MediaFilesListBox.SelectedItem is not MediaListItem selectedMedia || _mediaRepository is null)
+        {
+            return;
+        }
+
+        _currentMediaFile = await _mediaRepository.GetByIdAsync(selectedMedia.Id);
+        if (_currentMediaFile is null)
+        {
+            MediaFormStatusText.Text = "Medium wurde nicht gefunden.";
+            UpdateMediaActionButtons();
+            return;
+        }
+
+        FillMediaForm(_currentMediaFile);
+        MediaFormStatusText.Text = "Medium geladen.";
+        UpdateMediaActionButtons();
+    }
+
+    private async void LinkMediaToPersonButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mediaRepository is null || _currentMediaFile is null || _currentPerson is null || !_isCurrentPersonPersisted)
+        {
+            MediaFormStatusText.Text = "Wähle ein Medium und eine gespeicherte Person aus.";
+            return;
+        }
+
+        await _mediaRepository.LinkAsync(_currentMediaFile.Id, LinkedEntityType.Person, _currentPerson.Id);
+        MediaFormStatusText.Text = $"Medium wurde mit {_currentPerson.MainName} verknüpft.";
+    }
+
+    private async void LinkMediaToEventButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_mediaRepository is null || _eventRepository is null || _currentMediaFile is null || _currentEvent is null)
+        {
+            MediaFormStatusText.Text = "Wähle ein Medium und ein gespeichertes Ereignis aus.";
+            return;
+        }
+
+        var persistedEvent = await _eventRepository.GetByIdAsync(_currentEvent.Id);
+        if (persistedEvent is null)
+        {
+            MediaFormStatusText.Text = "Speichere oder wähle zuerst ein Ereignis aus.";
+            return;
+        }
+
+        await _mediaRepository.LinkAsync(_currentMediaFile.Id, LinkedEntityType.Event, _currentEvent.Id);
+        MediaFormStatusText.Text = $"Medium wurde mit {persistedEvent.Title} verknüpft.";
+    }
+
+    private async void SetPortraitButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_personRepository is null || _currentPerson is null || !_isCurrentPersonPersisted || _currentMediaFile is null)
+        {
+            MediaFormStatusText.Text = "Wähle ein Bild und eine gespeicherte Person aus.";
+            return;
+        }
+
+        if (_currentMediaFile.MediaType != MediaType.Image)
+        {
+            MediaFormStatusText.Text = "Nur Bilder können als Portrait gesetzt werden.";
+            return;
+        }
+
+        _currentPerson.PortraitMediaFileId = _currentMediaFile.Id;
+        await _personRepository.SaveAsync(_currentPerson);
+        MediaFormStatusText.Text = $"Portrait für {_currentPerson.MainName} wurde gesetzt.";
+        PersonFormStatusText.Text = "Portrait wurde gespeichert.";
+    }
+
     private async Task<string?> PickFolderAsync(string title)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -366,11 +501,13 @@ public partial class MainWindow : Window
         _relationshipRepository = new RelationshipRepository(workspace.DatabasePath);
         _eventRepository = new EventRepository(workspace.DatabasePath);
         _bibleReferenceRepository = new BibleReferenceRepository(workspace.DatabasePath);
+        _mediaRepository = new MediaRepository(workspace.DatabasePath);
         _currentPerson = null;
         _isCurrentPersonPersisted = false;
         _currentRelationship = null;
         _currentEvent = null;
         _currentBibleReference = null;
+        _currentMediaFile = null;
         var statistics = await _projectService.ReadStatisticsAsync(workspace);
 
         SidebarProjectTitle.Text = workspace.Settings.ProjectName;
@@ -384,6 +521,7 @@ public partial class MainWindow : Window
         RelationshipCountText.Text = statistics.RelationshipCount.ToString();
         EventCountText.Text = $"{statistics.EventCount} Ereignisse";
         BibleReferenceCountText.Text = $"{statistics.BibleReferenceCount} Bibelstellen";
+        MediaFileCountText.Text = $"{statistics.MediaFileCount} Medien";
         PlaceCountText.Text = statistics.PlaceCount.ToString();
         ResearchQuestionCountText.Text = $"{statistics.ResearchQuestionCount} offene Fragen";
         CreatePersonButton.IsEnabled = true;
@@ -393,14 +531,18 @@ public partial class MainWindow : Window
         SaveRelationshipButton.IsEnabled = true;
         SaveEventButton.IsEnabled = true;
         SaveBibleReferenceButton.IsEnabled = true;
+        ImportMediaButton.IsEnabled = true;
+        SaveMediaButton.IsEnabled = false;
         PersonFormStatusText.Text = "Bereit für die erste Person.";
         EventFormStatusText.Text = "Bereit für Ereignisse.";
         BibleReferenceFormStatusText.Text = "Bereit für Bibelstellen.";
+        MediaFormStatusText.Text = "Bereit für Medien.";
 
         await RefreshPeopleAsync();
         await RefreshRelationshipsAsync();
         await RefreshEventsAsync();
         await RefreshBibleReferencesAsync();
+        await RefreshMediaFilesAsync();
         await _appStateStore.SaveAsync(new AppState(workspace.RootDirectory));
     }
 
@@ -545,6 +687,30 @@ public partial class MainWindow : Window
             : $"{referenceItems.Count} Bibelstelle(n) erfasst.";
     }
 
+    private async Task RefreshMediaFilesAsync()
+    {
+        if (_mediaRepository is null)
+        {
+            MediaFilesListBox.ItemsSource = Array.Empty<MediaListItem>();
+            MediaFilesEmptyText.Text = "Noch kein Projekt geöffnet.";
+            return;
+        }
+
+        _mediaFiles = await _mediaRepository.SearchAsync(MediaSearchTextBox.Text ?? string.Empty);
+        var mediaItems = _mediaFiles
+            .Select(mediaFile => new MediaListItem(
+                mediaFile.Id,
+                FormatMediaTitle(mediaFile),
+                mediaFile.Description))
+            .ToList();
+
+        MediaFilesListBox.ItemsSource = mediaItems;
+        MediaFilesEmptyText.Text = mediaItems.Count == 0
+            ? "Noch keine Medien importiert."
+            : $"{mediaItems.Count} Medium/Medien gefunden.";
+        UpdateMediaActionButtons();
+    }
+
     private async Task RefreshStatisticsAsync()
     {
         if (_currentWorkspace is null)
@@ -557,6 +723,7 @@ public partial class MainWindow : Window
         RelationshipCountText.Text = $"{statistics.RelationshipCount} Beziehungen vorbereitet";
         EventCountText.Text = $"{statistics.EventCount} Ereignisse";
         BibleReferenceCountText.Text = $"{statistics.BibleReferenceCount} Bibelstellen";
+        MediaFileCountText.Text = $"{statistics.MediaFileCount} Medien";
         LastEditedText.Text = _currentPerson is null
             ? "Noch keine Person bearbeitet"
             : $"{_currentPerson.MainName} wurde zuletzt gespeichert.";
@@ -748,6 +915,41 @@ public partial class MainWindow : Window
         return $"{reference.Book} {reference.ChapterStart}{versePart}{endPart}{translation}";
     }
 
+    private string FormatMediaTitle(MediaFile mediaFile)
+    {
+        var availability = _currentWorkspace is not null && _mediaImportService.FileExists(_currentWorkspace, mediaFile)
+            ? "vorhanden"
+            : "fehlt";
+
+        return $"{DisplayText.For(mediaFile.MediaType)}: {mediaFile.OriginalFileName} ({availability})";
+    }
+
+    private void FillMediaForm(MediaFile mediaFile)
+    {
+        MediaDescriptionTextBox.Text = mediaFile.Description;
+        var availabilityText = _currentWorkspace is not null && _mediaImportService.FileExists(_currentWorkspace, mediaFile)
+            ? "Datei vorhanden"
+            : "Datei fehlt im Projektordner";
+        SelectedMediaText.Text =
+            $"{DisplayText.For(mediaFile.MediaType)} - {mediaFile.OriginalFileName}\n{mediaFile.RelativePath}\n{availabilityText}";
+        UpdateMediaActionButtons();
+    }
+
+    private void UpdateMediaActionButtons()
+    {
+        var hasProject = _currentWorkspace is not null;
+        var hasMedia = _currentMediaFile is not null;
+        ImportMediaButton.IsEnabled = hasProject;
+        SaveMediaButton.IsEnabled = hasProject && hasMedia;
+        LinkMediaToPersonButton.IsEnabled = hasProject && hasMedia && _currentPerson is not null && _isCurrentPersonPersisted;
+        LinkMediaToEventButton.IsEnabled = hasProject && hasMedia && _currentEvent is not null;
+        SetPortraitButton.IsEnabled = hasProject
+            && hasMedia
+            && _currentMediaFile?.MediaType == MediaType.Image
+            && _currentPerson is not null
+            && _isCurrentPersonPersisted;
+    }
+
     private static bool TryReadInt(string? value, out int result)
     {
         return int.TryParse(value?.Trim(), out result) && result > 0;
@@ -861,6 +1063,16 @@ public partial class MainWindow : Window
             return string.IsNullOrWhiteSpace(Summary)
                 ? Title
                 : $"{Title} - {Summary}";
+        }
+    }
+
+    private sealed record MediaListItem(Guid Id, string Title, string Description)
+    {
+        public override string ToString()
+        {
+            return string.IsNullOrWhiteSpace(Description)
+                ? Title
+                : $"{Title} - {Description}";
         }
     }
 

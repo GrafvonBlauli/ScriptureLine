@@ -73,6 +73,18 @@ public static class DisplayText
         };
     }
 
+    public static string For(MediaType mediaType)
+    {
+        return mediaType switch
+        {
+            MediaType.Image => "Bild",
+            MediaType.Pdf => "PDF",
+            MediaType.Document => "Dokument",
+            MediaType.Map => "Karte",
+            _ => "Sonstige Datei"
+        };
+    }
+
     public static string For(Gender gender)
     {
         return gender switch

@@ -127,6 +127,7 @@
                             <TextBlock x:Name="PersonCountText" Text="0" Classes="display" FontSize="34" />
                             <TextBlock x:Name="EventCountText" Text="0 Ereignisse" Classes="body" FontSize="12" TextWrapping="Wrap" />
                             <TextBlock x:Name="BibleReferenceCountText" Text="0 Bibelstellen" Classes="body" FontSize="12" TextWrapping="Wrap" />
+                            <TextBlock x:Name="MediaFileCountText" Text="0 Medien" Classes="body" FontSize="12" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Classes="card">
@@ -626,6 +627,76 @@
                             <TextBlock x:Name="BibleReferenceFormStatusText"
                                        Text="Öffne oder erstelle zuerst ein Projekt."
                                        Classes="body" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="1.05*,0.95*"
+                      ColumnSpacing="18">
+                    <Border Classes="card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Mediathek"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBlock Text="Bilder, PDFs und lokale Projektdateien"
+                                       Classes="body" />
+                            <TextBox x:Name="MediaSearchTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Medien suchen"
+                                     TextChanged="MediaSearchTextBox_TextChanged" />
+                            <ListBox x:Name="MediaFilesListBox"
+                                     MinHeight="180"
+                                     SelectionChanged="MediaFilesListBox_SelectionChanged" />
+                            <TextBlock x:Name="MediaFilesEmptyText"
+                                       Text="Noch keine Medien importiert."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Medium bearbeiten"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBlock x:Name="SelectedMediaText"
+                                       Text="Kein Medium ausgewählt."
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
+                            <TextBox x:Name="MediaDescriptionTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Beschreibung"
+                                     MinHeight="72"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap" />
+                            <Button x:Name="ImportMediaButton"
+                                    Classes="primary"
+                                    Content="Datei importieren"
+                                    Click="ImportMediaButton_Click"
+                                    IsEnabled="False" />
+                            <Button x:Name="SaveMediaButton"
+                                    Classes="secondary"
+                                    Content="Beschreibung speichern"
+                                    Click="SaveMediaButton_Click"
+                                    IsEnabled="False" />
+                            <Button x:Name="LinkMediaToPersonButton"
+                                    Classes="secondary"
+                                    Content="Mit Person verknüpfen"
+                                    Click="LinkMediaToPersonButton_Click"
+                                    IsEnabled="False" />
+                            <Button x:Name="LinkMediaToEventButton"
+                                    Classes="secondary"
+                                    Content="Mit Ereignis verknüpfen"
+                                    Click="LinkMediaToEventButton_Click"
+                                    IsEnabled="False" />
+                            <Button x:Name="SetPortraitButton"
+                                    Classes="secondary"
+                                    Content="Als Portrait setzen"
+                                    Click="SetPortraitButton_Click"
+                                    IsEnabled="False" />
+                            <TextBlock x:Name="MediaFormStatusText"
+                                       Text="Öffne oder erstelle zuerst ein Projekt."
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                 </Grid>

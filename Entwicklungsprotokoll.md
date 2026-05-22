@@ -160,4 +160,14 @@
 **Ergebnis:** Beziehungen, Event-Person-Verknüpfungen und Event-Bibelstellen-Verknüpfungen werden durch Foreign Keys abgesichert. Bibelstellen validieren positive Kapitel/Verse und logisch passende Endreferenzen. Der Codebehind wurde leicht entlastet, indem ComboBox-Anzeigeoptionen ausgelagert wurden.
 **Stresstest:** Mittleres Testprofil mit 2.000 Personen, 4.000 Beziehungen, 1.000 Ereignissen, 2.000 Bibelstellen und passenden Verknüpfungen ergänzt.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 26 Tests in 1 m 31 s.
-**Offene Punkte:** Commit `Stabilize events and add performance checks` erstellen und nach GitHub pushen.
+**Commit:** `4ca6b27 Stabilize events and add performance checks`
+**Push:** Erfolgreich nach GitHub, `main -> origin/main`.
+
+### 2026-05-22 08:18:28 +02:00 - Mediathek und PDF-Anhänge vorbereitet
+
+**Kategorie:** Mediathek / Dateiimport / SQLite / UI / Tests
+**Aktion:** Version 0.5-Grundlage für lokale Medien wurde implementiert. Importierte Dateien werden in den Projektordner kopiert und nur mit relativem Pfad in SQLite gespeichert.
+**Geänderte Bereiche:** Core-Modelle `MediaFile`, `MediaType`, `MediaLink`, `LinkedEntityType`; Infrastructure-Repositories `IMediaRepository`, `MediaRepository`; `MediaImportService`; SQLite-Schema `MediaFiles`/`MediaLinks`; Dashboard-/Mediathek-UI; Mediathek-Tests.
+**Ergebnis:** Bilder, PDFs, Dokumente, Karten und sonstige Dateien können importiert, gesucht, beschrieben und mit Personen oder Ereignissen verknüpft werden. Bildmedien können als Personenportrait gesetzt werden. Fehlende Dateien werden erkannt und als Status angezeigt.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 33 Tests in 2 m 34 s.
+**Offene Punkte:** Commit `Add media library foundation` erstellen und nach GitHub pushen.

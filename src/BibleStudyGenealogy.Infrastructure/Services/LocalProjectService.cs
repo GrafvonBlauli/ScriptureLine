@@ -93,16 +93,19 @@ public sealed class LocalProjectService : IProjectService
         var relationshipRepository = new RelationshipRepository(workspace.DatabasePath);
         var eventRepository = new EventRepository(workspace.DatabasePath);
         var bibleReferenceRepository = new BibleReferenceRepository(workspace.DatabasePath);
+        var mediaRepository = new MediaRepository(workspace.DatabasePath);
         var personCount = await personRepository.CountAsync(cancellationToken);
         var relationshipCount = await relationshipRepository.CountAsync(cancellationToken);
         var eventCount = await eventRepository.CountAsync(cancellationToken);
         var bibleReferenceCount = await bibleReferenceRepository.CountAsync(cancellationToken);
+        var mediaFileCount = await mediaRepository.CountAsync(cancellationToken);
 
         return new ProjectStatistics(
             personCount,
             relationshipCount,
             eventCount,
             bibleReferenceCount,
+            mediaFileCount,
             PlaceCount: 0,
             ResearchQuestionCount: 0);
     }
@@ -389,6 +392,31 @@ public sealed class LocalProjectService : IProjectService
         CREATE INDEX IF NOT EXISTS IX_EventBibleReferences_BibleReferenceId ON EventBibleReferences(BibleReferenceId);
         CREATE INDEX IF NOT EXISTS IX_Events_UpdatedAtUtc ON Events(UpdatedAtUtc);
         CREATE INDEX IF NOT EXISTS IX_BibleReferences_Book ON BibleReferences(Book);
+
+        CREATE TABLE IF NOT EXISTS MediaFiles (
+            Id TEXT PRIMARY KEY,
+            OriginalFileName TEXT NOT NULL,
+            RelativePath TEXT NOT NULL,
+            MediaType TEXT NOT NULL,
+            MimeType TEXT NOT NULL DEFAULT '',
+            FileSizeBytes INTEGER NOT NULL,
+            Description TEXT NOT NULL DEFAULT '',
+            CreatedAtUtc TEXT NOT NULL,
+            UpdatedAtUtc TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS MediaLinks (
+            MediaFileId TEXT NOT NULL,
+            EntityType TEXT NOT NULL,
+            EntityId TEXT NOT NULL,
+            CreatedAtUtc TEXT NOT NULL,
+            PRIMARY KEY (MediaFileId, EntityType, EntityId),
+            FOREIGN KEY (MediaFileId) REFERENCES MediaFiles(Id)
+        );
+
+        CREATE INDEX IF NOT EXISTS IX_MediaFiles_MediaType ON MediaFiles(MediaType);
+        CREATE INDEX IF NOT EXISTS IX_MediaFiles_OriginalFileName ON MediaFiles(OriginalFileName);
+        CREATE INDEX IF NOT EXISTS IX_MediaLinks_Entity ON MediaLinks(EntityType, EntityId);
         """;
 
 }
