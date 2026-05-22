@@ -1,5 +1,9 @@
+using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using BibleStudyGenealogy.Core.Models;
 using BibleStudyGenealogy.Infrastructure.Repositories;
@@ -7,6 +11,7 @@ using BibleStudyGenealogy.Infrastructure.Services;
 using BibleStudyGenealogy.Rendering.Timeline;
 using BibleStudyGenealogy.Rendering.TreeLayout;
 using System.Text.Json;
+using Line = Avalonia.Controls.Shapes.Line;
 using ScriptureEvent = BibleStudyGenealogy.Core.Models.Event;
 
 namespace BibleStudyGenealogy.App;
@@ -34,7 +39,11 @@ public partial class MainWindow : Window
     private IReadOnlyList<Relationship> _currentRelationships = Array.Empty<Relationship>();
     private IReadOnlyList<ScriptureEvent> _currentEvents = Array.Empty<ScriptureEvent>();
     private IReadOnlyList<MediaFile> _mediaFiles = Array.Empty<MediaFile>();
+    private IReadOnlyList<Person> _treePeople = Array.Empty<Person>();
     private AppModule _currentModule = AppModule.Dashboard;
+    private double _familyTreeZoom = 1;
+    private Guid? _treeSelectedPersonId;
+    private Guid? _addRelativeSourcePersonId;
 
     public MainWindow()
     {
@@ -42,6 +51,7 @@ public partial class MainWindow : Window
         InitializePersonForm();
         InitializeRelationshipForm();
         InitializeEventForm();
+        InitializeFamilyTreeForm();
         ShowModule(AppModule.Dashboard);
         RestoreLastProject();
     }
@@ -325,6 +335,111 @@ public partial class MainWindow : Window
         ArchiveRelationshipButton.IsEnabled = false;
         await RefreshRelationshipsAsync();
         await RefreshStatisticsAsync();
+    }
+
+    private async void FamilyTreeGenerationComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        await RefreshTreePreviewAsync();
+    }
+
+    private async void TreeEditPersonButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_treeSelectedPersonId is null || _personRepository is null)
+        {
+            return;
+        }
+
+        _currentPerson = await _personRepository.GetByIdAsync(_treeSelectedPersonId.Value);
+        _isCurrentPersonPersisted = _currentPerson is not null;
+        if (_currentPerson is null)
+        {
+            FamilyTreeStatusText.Text = "Person wurde nicht gefunden.";
+            return;
+        }
+
+        FillFormFromPerson(_currentPerson);
+        ShowModule(AppModule.People);
+        PersonFormStatusText.Text = "Person aus dem Stammbaum geladen.";
+        await RefreshRelationshipsAsync();
+        await RefreshEventsAsync();
+        await RefreshMediaFilesAsync();
+    }
+
+    private void TreeAddRelativeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_treeSelectedPersonId is null)
+        {
+            return;
+        }
+
+        OpenRelativeOverlay(_treeSelectedPersonId.Value);
+    }
+
+    private void ZoomInTreeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        SetFamilyTreeZoom(_familyTreeZoom + 0.15);
+    }
+
+    private void ZoomOutTreeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        SetFamilyTreeZoom(_familyTreeZoom - 0.15);
+    }
+
+    private void CenterTreeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        CenterFamilyTree();
+    }
+
+    private void FamilyTreeCanvas_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        SetFamilyTreeZoom(_familyTreeZoom + (e.Delta.Y > 0 ? 0.1 : -0.1));
+        e.Handled = true;
+    }
+
+    private async void SaveRelativeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_personRepository is null || _relationshipRepository is null || _addRelativeSourcePersonId is null)
+        {
+            AddRelativeStatusText.Text = "Öffne oder erstelle zuerst ein Projekt.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(AddRelativeNameTextBox.Text))
+        {
+            AddRelativeStatusText.Text = "Bitte gib mindestens einen Hauptnamen ein.";
+            return;
+        }
+
+        var sourcePersonId = _addRelativeSourcePersonId.Value;
+        var newPerson = new Person
+        {
+            MainName = AddRelativeNameTextBox.Text.Trim(),
+            PrimaryRole = AddRelativeRoleTextBox.Text?.Trim() ?? string.Empty,
+            Gender = (AddRelativeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown,
+            Status = (AddRelativeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active
+        };
+        var relationship = CreateRelationshipForRelative(newPerson.Id, sourcePersonId);
+
+        try
+        {
+            await _personRepository.SaveAsync(newPerson);
+            await _relationshipRepository.SaveAsync(relationship);
+            AddRelativeOverlay.IsVisible = false;
+            AddRelativeStatusText.Text = "Neue Person und Beziehung wurden gespeichert.";
+            _treeSelectedPersonId = newPerson.Id;
+            await RefreshPeopleAsync();
+            await RefreshRelationshipsAsync();
+            await RefreshStatisticsAsync();
+        }
+        catch (Exception exception)
+        {
+            AddRelativeStatusText.Text = $"Verwandte Person konnte nicht gespeichert werden: {exception.Message}";
+        }
+    }
+
+    private void CancelRelativeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        AddRelativeOverlay.IsVisible = false;
     }
 
     private void CreateEventButton_Click(object? sender, RoutedEventArgs e)
@@ -682,6 +797,32 @@ public partial class MainWindow : Window
         EventCertaintyComboBox.SelectedIndex = 6;
     }
 
+    private void InitializeFamilyTreeForm()
+    {
+        FamilyTreeGenerationComboBox.ItemsSource = new[]
+        {
+            new TreeGenerationOption("2 Generationen", 2, false),
+            new TreeGenerationOption("3 Generationen", 3, false),
+            new TreeGenerationOption("4 Generationen", 4, false),
+            new TreeGenerationOption("Alle", int.MaxValue, true)
+        };
+        FamilyTreeGenerationComboBox.SelectedIndex = 0;
+        AddRelativeTypeComboBox.ItemsSource = new[]
+        {
+            new RelativeTypeOption(RelativeAddKind.Parent, "Elternteil hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Child, "Kind hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Partner, "Partner hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Sibling, "Geschwister hinzufügen")
+        };
+        AddRelativeTypeComboBox.SelectedIndex = 1;
+        AddRelativeGenderComboBox.ItemsSource = DisplayOptions.Genders();
+        AddRelativeGenderComboBox.SelectedIndex = 0;
+        AddRelativeStatusComboBox.ItemsSource = DisplayOptions.PersonStatuses();
+        AddRelativeStatusComboBox.SelectedIndex = 0;
+        AddRelativeCertaintyComboBox.ItemsSource = DisplayOptions.CertaintyLevels();
+        SelectEnumValue(AddRelativeCertaintyComboBox, CertaintyLevel.Likely);
+    }
+
     private async Task RefreshPeopleAsync()
     {
         if (_personRepository is null)
@@ -716,6 +857,11 @@ public partial class MainWindow : Window
             TreePartnersText.Text = "Partner: keine";
             TreeChildrenText.Text = "Kinder: keine";
             TreeOtherText.Text = "Weitere oder unsichere Beziehungen: keine";
+            FamilyTreeStatusText.Text = "Wähle eine gespeicherte Person aus, um den Stammbaum zu zeichnen.";
+            TreeSelectedPersonText.Text = "Noch keine Person ausgewählt.";
+            TreeEditPersonButton.IsEnabled = false;
+            TreeAddRelativeButton.IsEnabled = false;
+            FamilyTreeCanvas.Children.Clear();
             return;
         }
 
@@ -732,7 +878,7 @@ public partial class MainWindow : Window
             .Where(person => person.Id != _currentPerson.Id)
             .Select(person => new PersonListItem(person.Id, person.MainName, person.PrimaryRole))
             .ToList();
-        RefreshTreePreview();
+        await RefreshTreePreviewAsync();
     }
 
     private async Task RefreshEventsAsync()
@@ -999,14 +1145,18 @@ public partial class MainWindow : Window
             relationship.Comment);
     }
 
-    private void RefreshTreePreview()
+    private async Task RefreshTreePreviewAsync()
     {
-        if (_currentPerson is null)
+        if (_currentPerson is null || _relationshipRepository is null || _personRepository is null)
         {
+            FamilyTreeCanvas.Children.Clear();
             return;
         }
 
-        var snapshot = _familyTreeBuilder.Build(_currentPerson, _people, _currentRelationships);
+        var allPeople = await _personRepository.SearchAsync(string.Empty);
+        _treePeople = allPeople;
+        var treeRelationships = await LoadConnectedRelationshipsAsync(_currentPerson.Id);
+        var snapshot = _familyTreeBuilder.Build(_currentPerson, allPeople, treeRelationships);
         TreeParentsText.Text = $"Eltern: {FormatTreeGroup(snapshot.Parents.Select(node => node.DisplayName).ToList())}";
         TreeFocusText.Text = $"Fokusperson: {snapshot.FocusPerson.DisplayName}";
         TreePartnersText.Text = $"Partner: {FormatTreeGroup(snapshot.Partners.Select(node => node.DisplayName).ToList())}";
@@ -1015,6 +1165,248 @@ public partial class MainWindow : Window
         TreePreviewText.Text = snapshot.Links.Any(link => link.IsUncertain)
             ? "Unsichere oder ungerichtete Beziehungen werden in der Vorschau unter weitere Beziehungen geführt."
             : "Die gespeicherten Beziehungen wurden in die einfache Stammbaum-Vorschau übernommen.";
+        FamilyTreeStatusText.Text = $"{snapshot.FocusPerson.DisplayName} ist der Fokus. Nutze + an einer Karte, um Verwandte hinzuzufügen.";
+        _treeSelectedPersonId ??= _currentPerson.Id;
+        var diagram = _familyTreeBuilder.BuildDiagram(_currentPerson, allPeople, treeRelationships, GetTreeLayoutOptions());
+        DrawFamilyTree(diagram);
+    }
+
+    private async Task<IReadOnlyList<Relationship>> LoadConnectedRelationshipsAsync(Guid focusPersonId)
+    {
+        if (_relationshipRepository is null)
+        {
+            return Array.Empty<Relationship>();
+        }
+
+        var relationshipsById = new Dictionary<Guid, Relationship>();
+        var visitedPeople = new HashSet<Guid>();
+        var queue = new Queue<Guid>();
+        queue.Enqueue(focusPersonId);
+
+        while (queue.Count > 0)
+        {
+            var personId = queue.Dequeue();
+            if (!visitedPeople.Add(personId))
+            {
+                continue;
+            }
+
+            var relationships = await _relationshipRepository.GetForPersonAsync(personId);
+            foreach (var relationship in relationships)
+            {
+                relationshipsById.TryAdd(relationship.Id, relationship);
+                var otherPersonId = relationship.PersonAId == personId
+                    ? relationship.PersonBId
+                    : relationship.PersonAId;
+                if (!visitedPeople.Contains(otherPersonId))
+                {
+                    queue.Enqueue(otherPersonId);
+                }
+            }
+        }
+
+        return relationshipsById.Values.ToList();
+    }
+
+    private FamilyTreeLayoutOptions GetTreeLayoutOptions()
+    {
+        return FamilyTreeGenerationComboBox.SelectedItem is TreeGenerationOption option
+            ? new FamilyTreeLayoutOptions(option.GenerationLimit, option.ShowAllConnected)
+            : FamilyTreeLayoutOptions.Default;
+    }
+
+    private void DrawFamilyTree(FamilyTreeDiagram diagram)
+    {
+        FamilyTreeCanvas.Children.Clear();
+        FamilyTreeCanvas.Width = diagram.Width * _familyTreeZoom;
+        FamilyTreeCanvas.Height = diagram.Height * _familyTreeZoom;
+        var nodesById = diagram.Nodes.ToDictionary(node => node.PersonId);
+
+        foreach (var link in diagram.Links)
+        {
+            if (!nodesById.TryGetValue(link.FromPersonId, out var fromNode)
+                || !nodesById.TryGetValue(link.ToPersonId, out var toNode))
+            {
+                continue;
+            }
+
+            var line = new Line
+            {
+                StartPoint = ScalePoint(fromNode.X + 75, fromNode.Y + 36),
+                EndPoint = ScalePoint(toNode.X + 75, toNode.Y + 36),
+                Stroke = link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
+                StrokeThickness = link.IsUncertain ? 1.5 : 2.2
+            };
+            if (link.IsUncertain)
+            {
+                line.StrokeDashArray = new AvaloniaList<double> { 4, 4 };
+            }
+
+            FamilyTreeCanvas.Children.Add(line);
+        }
+
+        foreach (var node in diagram.Nodes)
+        {
+            var card = CreateTreePersonCard(node);
+            Canvas.SetLeft(card, node.X * _familyTreeZoom);
+            Canvas.SetTop(card, node.Y * _familyTreeZoom);
+            FamilyTreeCanvas.Children.Add(card);
+        }
+    }
+
+    private Point ScalePoint(double x, double y)
+    {
+        return new Point(x * _familyTreeZoom, y * _familyTreeZoom);
+    }
+
+    private Control CreateTreePersonCard(FamilyTreeDiagramNode node)
+    {
+        var borderBrush = node.Kind switch
+        {
+            FamilyTreeNodeKind.Focus => Brushes.DarkOrange,
+            FamilyTreeNodeKind.Parent => Brushes.SeaGreen,
+            FamilyTreeNodeKind.Partner => Brushes.IndianRed,
+            FamilyTreeNodeKind.Sibling => Brushes.SteelBlue,
+            FamilyTreeNodeKind.Child => Brushes.Teal,
+            _ => Brushes.Gray
+        };
+        var background = node.IsUncertain ? new SolidColorBrush(Color.Parse("#E6D8BF")) : new SolidColorBrush(Color.Parse("#FAE8BC"));
+        var cardButton = new Button
+        {
+            Width = 150 * _familyTreeZoom,
+            Height = 72 * _familyTreeZoom,
+            Padding = new Thickness(0),
+            Background = background,
+            BorderBrush = borderBrush,
+            BorderThickness = new Thickness(node.IsFocus ? 2.2 : 1.3)
+        };
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8 * _familyTreeZoom)
+        };
+        var nameText = new TextBlock
+        {
+            Text = node.DisplayName,
+            Foreground = Brushes.DarkSlateGray,
+            FontWeight = FontWeight.SemiBold,
+            FontSize = 13 * _familyTreeZoom,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var roleText = new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(node.Role) ? DisplayTreeNodeKind(node.Kind) : node.Role,
+            Foreground = Brushes.DimGray,
+            FontSize = 10 * _familyTreeZoom,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var plusButton = new Button
+        {
+            Content = "+",
+            Width = 24 * _familyTreeZoom,
+            Height = 24 * _familyTreeZoom,
+            Padding = new Thickness(0),
+            FontSize = 12 * _familyTreeZoom
+        };
+        plusButton.Click += (_, _) => OpenRelativeOverlay(node.PersonId);
+        cardButton.Click += (_, _) => SelectTreePerson(node.PersonId);
+
+        Grid.SetRow(nameText, 0);
+        Grid.SetColumn(nameText, 0);
+        Grid.SetRow(roleText, 1);
+        Grid.SetColumn(roleText, 0);
+        Grid.SetRow(plusButton, 0);
+        Grid.SetColumn(plusButton, 1);
+        Grid.SetRowSpan(plusButton, 2);
+        grid.Children.Add(nameText);
+        grid.Children.Add(roleText);
+        grid.Children.Add(plusButton);
+        cardButton.Content = grid;
+        return cardButton;
+    }
+
+    private void SelectTreePerson(Guid personId)
+    {
+        _treeSelectedPersonId = personId;
+        var person = _people.FirstOrDefault(person => person.Id == personId);
+        person ??= _treePeople.FirstOrDefault(person => person.Id == personId);
+        TreeSelectedPersonText.Text = person is null
+            ? "Person ist nicht in der aktuellen Liste sichtbar."
+            : $"{person.MainName}\n{person.PrimaryRole}";
+        TreeEditPersonButton.IsEnabled = true;
+        TreeAddRelativeButton.IsEnabled = true;
+    }
+
+    private void OpenRelativeOverlay(Guid sourcePersonId)
+    {
+        _addRelativeSourcePersonId = sourcePersonId;
+        var sourceName = _people.FirstOrDefault(person => person.Id == sourcePersonId)?.MainName ?? "dieser Person";
+        sourceName = _treePeople.FirstOrDefault(person => person.Id == sourcePersonId)?.MainName ?? sourceName;
+        AddRelativeTitleText.Text = $"Verwandte zu {sourceName}";
+        AddRelativeNameTextBox.Text = string.Empty;
+        AddRelativeRoleTextBox.Text = string.Empty;
+        AddRelativeStatusText.Text = "Neue Person und Beziehung werden gemeinsam gespeichert.";
+        AddRelativeOverlay.IsVisible = true;
+        AddRelativeNameTextBox.Focus();
+    }
+
+    private Relationship CreateRelationshipForRelative(Guid newPersonId, Guid sourcePersonId)
+    {
+        var kind = (AddRelativeTypeComboBox.SelectedItem as RelativeTypeOption)?.Value ?? RelativeAddKind.Child;
+        var certainty = (AddRelativeCertaintyComboBox.SelectedItem as EnumDisplay<CertaintyLevel>)?.Value ?? CertaintyLevel.Likely;
+        return kind switch
+        {
+            RelativeAddKind.Parent => new Relationship
+            {
+                PersonAId = newPersonId,
+                PersonBId = sourcePersonId,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB,
+                CertaintyLevel = certainty
+            },
+            RelativeAddKind.Partner => new Relationship
+            {
+                PersonAId = sourcePersonId,
+                PersonBId = newPersonId,
+                RelationshipType = RelationshipType.Spouse,
+                Direction = RelationshipDirection.Undirected,
+                CertaintyLevel = certainty
+            },
+            RelativeAddKind.Sibling => new Relationship
+            {
+                PersonAId = sourcePersonId,
+                PersonBId = newPersonId,
+                RelationshipType = RelationshipType.Sibling,
+                Direction = RelationshipDirection.Undirected,
+                CertaintyLevel = certainty
+            },
+            _ => new Relationship
+            {
+                PersonAId = sourcePersonId,
+                PersonBId = newPersonId,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB,
+                CertaintyLevel = certainty
+            }
+        };
+    }
+
+    private void SetFamilyTreeZoom(double zoom)
+    {
+        _familyTreeZoom = Math.Clamp(zoom, 0.45, 1.9);
+        if (_currentPerson is not null)
+        {
+            _ = RefreshTreePreviewAsync();
+        }
+    }
+
+    private void CenterFamilyTree()
+    {
+        FamilyTreeScrollViewer.Offset = new Vector(
+            Math.Max(0, (FamilyTreeCanvas.Width - FamilyTreeScrollViewer.Bounds.Width) / 2),
+            Math.Max(0, (FamilyTreeCanvas.Height - FamilyTreeScrollViewer.Bounds.Height) / 2));
     }
 
     private string FindPersonName(Guid personId)
@@ -1085,6 +1477,19 @@ public partial class MainWindow : Window
     private static string FormatTreeGroup(IReadOnlyCollection<string> names)
     {
         return names.Count == 0 ? "keine" : string.Join(", ", names);
+    }
+
+    private static string DisplayTreeNodeKind(FamilyTreeNodeKind kind)
+    {
+        return kind switch
+        {
+            FamilyTreeNodeKind.Focus => "Fokus",
+            FamilyTreeNodeKind.Parent => "Elternteil",
+            FamilyTreeNodeKind.Partner => "Partner",
+            FamilyTreeNodeKind.Sibling => "Geschwister",
+            FamilyTreeNodeKind.Child => "Kind",
+            _ => "Verwandt"
+        };
     }
 
     private void ClearPersonForm()
@@ -1185,6 +1590,30 @@ public partial class MainWindow : Window
             return string.IsNullOrWhiteSpace(Description)
                 ? Title
                 : $"{Title} - {Description}";
+        }
+    }
+
+    private sealed record TreeGenerationOption(string Label, int GenerationLimit, bool ShowAllConnected)
+    {
+        public override string ToString()
+        {
+            return Label;
+        }
+    }
+
+    private enum RelativeAddKind
+    {
+        Parent,
+        Child,
+        Partner,
+        Sibling
+    }
+
+    private sealed record RelativeTypeOption(RelativeAddKind Value, string Label)
+    {
+        public override string ToString()
+        {
+            return Label;
         }
     }
 

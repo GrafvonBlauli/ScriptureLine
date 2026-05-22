@@ -5,6 +5,7 @@ public enum FamilyTreeNodeKind
     Focus,
     Parent,
     Partner,
+    Sibling,
     Child,
     Other
 }

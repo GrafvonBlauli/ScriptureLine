@@ -522,33 +522,142 @@
 
                 <Border x:Name="FamilyTreeView"
                         Classes="card">
-                    <StackPanel Spacing="14">
-                        <TextBlock Text="Stammbaum"
-                                   Classes="display"
-                                   FontSize="30" />
-                        <TextBlock Text="Einfache Vorschau der ausgewählten Person"
-                                   Classes="body" />
-                        <Grid ColumnDefinitions="*,1.1*,*"
-                              RowDefinitions="Auto,Auto,Auto"
-                              ColumnSpacing="12"
-                              RowSpacing="12">
-                            <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource ParchmentTintBrush}" BorderBrush="{StaticResource SoftLineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
-                                <TextBlock x:Name="TreeParentsText" Text="Eltern: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
-                            </Border>
-                            <Border Grid.Row="1" Grid.Column="1" Background="#F4DFAF" BorderBrush="{StaticResource OchreBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                                <TextBlock x:Name="TreeFocusText" Text="Fokusperson: keine ausgewählt" Foreground="{StaticResource InkGreenBrush}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                            </Border>
-                            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource ParchmentTintBrush}" BorderBrush="{StaticResource SoftLineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
-                                <TextBlock x:Name="TreePartnersText" Text="Partner: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
-                            </Border>
-                            <Border Grid.Row="2" Grid.Column="1" Background="{StaticResource ParchmentTintBrush}" BorderBrush="{StaticResource SoftLineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
-                                <TextBlock x:Name="TreeChildrenText" Text="Kinder: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
-                            </Border>
-                            <Border Grid.Row="1" Grid.Column="2" Grid.RowSpan="2" Background="#E8D2A4" BorderBrush="#C6A873" BorderThickness="1" CornerRadius="8" Padding="14">
-                                <TextBlock x:Name="TreeOtherText" Text="Unsicher / weitere: keine" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
-                            </Border>
+                    <Grid>
+                        <Grid RowDefinitions="Auto,*"
+                              RowSpacing="14">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="14">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Stammbaum"
+                                               Classes="display"
+                                               FontSize="30" />
+                                    <TextBlock x:Name="FamilyTreeStatusText"
+                                               Text="Wähle eine gespeicherte Person aus, um den Stammbaum zu zeichnen."
+                                               Classes="body"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            Spacing="8"
+                                            VerticalAlignment="Top">
+                                    <ComboBox x:Name="FamilyTreeGenerationComboBox"
+                                              Classes="project-name"
+                                              Width="150"
+                                              SelectionChanged="FamilyTreeGenerationComboBox_SelectionChanged" />
+                                    <Button Classes="secondary"
+                                            Content="-"
+                                            Click="ZoomOutTreeButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="+"
+                                            Click="ZoomInTreeButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="Zentrieren"
+                                            Click="CenterTreeButton_Click" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Grid.Row="1"
+                                  ColumnDefinitions="*,300"
+                                  ColumnSpacing="16">
+                                <Border Background="#F8EBD0"
+                                        BorderBrush="{StaticResource SoftLineBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        ClipToBounds="True">
+                                    <ScrollViewer x:Name="FamilyTreeScrollViewer"
+                                                  HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <Canvas x:Name="FamilyTreeCanvas"
+                                                Width="900"
+                                                Height="520"
+                                                Background="#F8EBD0"
+                                                PointerWheelChanged="FamilyTreeCanvas_PointerWheelChanged" />
+                                    </ScrollViewer>
+                                </Border>
+
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource ParchmentTintBrush}"
+                                        BorderBrush="{StaticResource SoftLineBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="14">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="Person im Baum"
+                                                   Foreground="{StaticResource InkGreenBrush}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="TreeSelectedPersonText"
+                                                   Text="Noch keine Person ausgewählt."
+                                                   Classes="body"
+                                                   TextWrapping="Wrap" />
+                                        <Button x:Name="TreeEditPersonButton"
+                                                Classes="primary"
+                                                Content="Person bearbeiten"
+                                                Click="TreeEditPersonButton_Click"
+                                                IsEnabled="False" />
+                                        <Button x:Name="TreeAddRelativeButton"
+                                                Classes="secondary"
+                                                Content="Verwandte hinzufügen"
+                                                Click="TreeAddRelativeButton_Click"
+                                                IsEnabled="False" />
+                                        <TextBlock x:Name="TreeParentsText" Text="Eltern: keine" Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="TreeFocusText" Text="Fokusperson: keine ausgewählt" Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="TreePartnersText" Text="Partner: keine" Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="TreeChildrenText" Text="Kinder: keine" Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="TreeOtherText" Text="Weitere oder unsichere Beziehungen: keine" Classes="body" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </Grid>
-                    </StackPanel>
+
+                        <Border x:Name="AddRelativeOverlay"
+                                IsVisible="False"
+                                Background="#99203A38"
+                                CornerRadius="8">
+                            <Border Width="460"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Background="{StaticResource CreamBrush}"
+                                    BorderBrush="{StaticResource SoftLineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="20">
+                                <StackPanel Spacing="12">
+                                    <TextBlock x:Name="AddRelativeTitleText"
+                                               Text="Verwandte hinzufügen"
+                                               Classes="display"
+                                               FontSize="26" />
+                                    <ComboBox x:Name="AddRelativeTypeComboBox"
+                                              Classes="project-name" />
+                                    <TextBox x:Name="AddRelativeNameTextBox"
+                                             Classes="project-name"
+                                             PlaceholderText="Hauptname" />
+                                    <TextBox x:Name="AddRelativeRoleTextBox"
+                                             Classes="project-name"
+                                             PlaceholderText="Rolle oder Kurzinfo" />
+                                    <ComboBox x:Name="AddRelativeGenderComboBox"
+                                              Classes="project-name" />
+                                    <ComboBox x:Name="AddRelativeStatusComboBox"
+                                              Classes="project-name" />
+                                    <ComboBox x:Name="AddRelativeCertaintyComboBox"
+                                              Classes="project-name" />
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="10">
+                                        <Button Classes="primary"
+                                                Content="Hinzufügen"
+                                                Click="SaveRelativeButton_Click" />
+                                        <Button Classes="secondary"
+                                                Content="Abbrechen"
+                                                Click="CancelRelativeButton_Click" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="AddRelativeStatusText"
+                                               Text="Neue Person und Beziehung werden gemeinsam gespeichert."
+                                               Classes="body"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Border>
+                    </Grid>
                 </Border>
 
                 <Grid x:Name="EventsView"

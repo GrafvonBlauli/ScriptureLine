@@ -191,3 +191,11 @@
 **Ergebnis:** Sidebar-Schaltflächen wechseln über `ShowModule(AppModule module)` zwischen den Arbeitsbereichen. Dashboard-Schnellzugriffe öffnen direkt das passende Modul. Karte, Orte und Forschungsfragen sind als eigene Platzhalterseiten erreichbar und klar als noch nicht umgesetzt markiert.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. Erster `dotnet test --no-build`-Lauf brach nach 124 s wegen Timeout ab; erneuter Lauf mit längerem Timeout erfolgreich mit 39 Tests in 2 m 9 s.
 **Offene Punkte:** Commit `Add navigable module views` erstellen und nach GitHub pushen.
+### 2026-05-22 18:45:00 +02:00 - Interaktiver Stammbaum begonnen
+
+**Kategorie:** Stammbaum / Rendering / UI / Tests
+**Aktion:** Die einfache Text-Vorschau wurde zu einer ersten interaktiven Stammbaum-Oberfläche ausgebaut. Das Rendering-Projekt erhielt Diagrammtypen mit Koordinaten, Generationenlimit und Gesamtbaum-Modus. Im Stammbaum-Modul wurden Toolbar, zoombare Canvas-Fläche, Seitenpanel und Overlay zum Hinzufügen von Verwandten ergänzt.
+**Geänderte Bereiche:** `FamilyTreeBuilder`, neue Diagramm-DTOs im Rendering-Projekt, `MainWindow.axaml`, `MainWindow.axaml.cs`, `FamilyTreeBuilderTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Personen werden als Karten mit Linien dargestellt. Klick auf eine Karte wählt sie im Seitenpanel aus, der Plus-Knopf öffnet ein Overlay für Elternteil, Kind, Partner oder Geschwister. Neue Personen werden mit passender Beziehung gespeichert und der Baum aktualisiert.
+**Verifikation:** Nach Korrektur der Buildfehler erfolgreich geprüft: `dotnet build` mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 42 Tests in 1 m 41 s.
+**Offene Punkte:** Commit `Add interactive family tree editor` erstellen und nach GitHub pushen.
