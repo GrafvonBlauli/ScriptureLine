@@ -36,6 +36,57 @@ public sealed partial class UiFunctionMatrixTests
         Assert.Contains("noch nicht umgesetzt", xaml, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void MainWindow_SidebarButtons_HaveNavigationHandlers()
+    {
+        var rootDirectory = FindRepositoryRoot();
+        var xaml = File.ReadAllText(Path.Combine(rootDirectory, "src", "BibleStudyGenealogy.App", "MainWindow.axaml"));
+
+        var expectedHandlers = new[]
+        {
+            "NavigateDashboardButton_Click",
+            "NavigatePeopleButton_Click",
+            "NavigateFamilyTreeButton_Click",
+            "NavigateTimelineButton_Click",
+            "NavigateMapButton_Click",
+            "NavigateEventsButton_Click",
+            "NavigatePlacesButton_Click",
+            "NavigateBibleReferencesButton_Click",
+            "NavigateMediaButton_Click",
+            "NavigateResearchQuestionsButton_Click"
+        };
+
+        foreach (var handler in expectedHandlers)
+        {
+            Assert.Contains($"Click=\"{handler}\"", xaml, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void AppModule_DefinesEverySidebarTarget()
+    {
+        var rootDirectory = FindRepositoryRoot();
+        var appModuleSource = File.ReadAllText(Path.Combine(rootDirectory, "src", "BibleStudyGenealogy.App", "AppModule.cs"));
+        var expectedModules = new[]
+        {
+            "Dashboard",
+            "People",
+            "FamilyTree",
+            "Timeline",
+            "Map",
+            "Events",
+            "Places",
+            "BibleReferences",
+            "Media",
+            "ResearchQuestions"
+        };
+
+        foreach (var module in expectedModules)
+        {
+            Assert.Contains(module, appModuleSource, StringComparison.Ordinal);
+        }
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

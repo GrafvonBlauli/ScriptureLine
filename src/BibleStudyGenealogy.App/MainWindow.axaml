@@ -27,16 +27,16 @@
                 <StackPanel Grid.Row="1"
                             Margin="0,36,0,0"
                             Spacing="8">
-                    <Button Classes="nav active" Content="Dashboard" ToolTip.Tip="Aktuelle Gesamtansicht" />
-                    <Button Classes="nav" Content="Personen" ToolTip.Tip="Personenbereich ist weiter unten auf dieser Seite verfügbar." />
-                    <Button Classes="nav" Content="Stammbaum" ToolTip.Tip="Stammbaum-Vorschau ist weiter unten auf dieser Seite verfügbar." />
-                    <Button Classes="nav" Content="Zeitstrahl (Vorschau)" ToolTip.Tip="Erste Timeline-Liste ist im Dashboard sichtbar." />
-                    <Button Classes="nav" Content="Karte (bald)" ToolTip.Tip="Kartenansicht ist noch nicht umgesetzt." IsEnabled="False" />
-                    <Button Classes="nav" Content="Ereignisse" ToolTip.Tip="Ereignisbereich ist weiter unten auf dieser Seite verfügbar." />
-                    <Button Classes="nav" Content="Orte (bald)" ToolTip.Tip="Ortsverwaltung ist noch nicht umgesetzt." IsEnabled="False" />
-                    <Button Classes="nav" Content="Bibelstellen" ToolTip.Tip="Bibelstellenbereich ist weiter unten auf dieser Seite verfügbar." />
-                    <Button Classes="nav" Content="Mediathek" ToolTip.Tip="Mediathek ist weiter unten auf dieser Seite verfügbar." />
-                    <Button Classes="nav" Content="Forschungsfragen (bald)" ToolTip.Tip="Forschungsfragen sind noch nicht umgesetzt." IsEnabled="False" />
+                    <Button x:Name="NavDashboardButton" Classes="nav active" Content="Dashboard" Click="NavigateDashboardButton_Click" ToolTip.Tip="Aktuelle Gesamtansicht" />
+                    <Button x:Name="NavPeopleButton" Classes="nav" Content="Personen" Click="NavigatePeopleButton_Click" ToolTip.Tip="Personen suchen, anlegen und bearbeiten." />
+                    <Button x:Name="NavFamilyTreeButton" Classes="nav" Content="Stammbaum" Click="NavigateFamilyTreeButton_Click" ToolTip.Tip="Familienbeziehungen und Stammbaum-Vorschau." />
+                    <Button x:Name="NavTimelineButton" Classes="nav" Content="Zeitstrahl" Click="NavigateTimelineButton_Click" ToolTip.Tip="Ereignisse chronologisch ansehen." />
+                    <Button x:Name="NavMapButton" Classes="nav" Content="Karte (bald)" Click="NavigateMapButton_Click" ToolTip.Tip="Kartenansicht ist noch nicht umgesetzt." />
+                    <Button x:Name="NavEventsButton" Classes="nav" Content="Ereignisse" Click="NavigateEventsButton_Click" ToolTip.Tip="Ereignisse erfassen und bearbeiten." />
+                    <Button x:Name="NavPlacesButton" Classes="nav" Content="Orte (bald)" Click="NavigatePlacesButton_Click" ToolTip.Tip="Ortsverwaltung ist noch nicht umgesetzt." />
+                    <Button x:Name="NavBibleReferencesButton" Classes="nav" Content="Bibelstellen" Click="NavigateBibleReferencesButton_Click" ToolTip.Tip="Bibelstellen erfassen und kommentieren." />
+                    <Button x:Name="NavMediaButton" Classes="nav" Content="Mediathek" Click="NavigateMediaButton_Click" ToolTip.Tip="Bilder, PDFs und Projektdateien importieren." />
+                    <Button x:Name="NavResearchQuestionsButton" Classes="nav" Content="Forschungsfragen (bald)" Click="NavigateResearchQuestionsButton_Click" ToolTip.Tip="Forschungsfragen sind noch nicht umgesetzt." />
                 </StackPanel>
 
                 <Border Grid.Row="2"
@@ -63,7 +63,8 @@
                       Background="{StaticResource PetrolBrush}">
             <StackPanel Margin="34"
                         Spacing="24">
-                <Border CornerRadius="8"
+                <Border x:Name="DashboardHeroView"
+                        CornerRadius="8"
                         ClipToBounds="True">
                     <Grid MinHeight="360">
                         <Image Source="avares://BibleStudyGenealogy.App/Assets/Images/Dashboardpicture.png"
@@ -118,7 +119,8 @@
                     </Grid>
                 </Border>
 
-                <Grid ColumnDefinitions="1.05*,*,*,*"
+                <Grid x:Name="DashboardStatsView"
+                      ColumnDefinitions="1.05*,*,*,*"
                       ColumnSpacing="16">
                     <Border Grid.Column="0" Classes="card">
                         <StackPanel Spacing="9">
@@ -158,7 +160,8 @@
                     </Border>
                 </Grid>
 
-                <Grid ColumnDefinitions="1.1*,0.9*"
+                <Grid x:Name="DashboardProjectView"
+                      ColumnDefinitions="1.1*,0.9*"
                       ColumnSpacing="18">
                     <Border Grid.Column="0"
                             Classes="card">
@@ -237,7 +240,8 @@
                     </Border>
                 </Grid>
 
-                <Border Classes="dark-card">
+                <Border x:Name="DashboardTreePreviewView"
+                        Classes="dark-card">
                     <Grid ColumnDefinitions="*,Auto"
                           ColumnSpacing="20">
                         <StackPanel Spacing="7">
@@ -258,7 +262,8 @@
                     </Grid>
                 </Border>
 
-                <Grid ColumnDefinitions="*,*,1.35*"
+                <Grid x:Name="DashboardActionsView"
+                      ColumnDefinitions="*,*,1.35*"
                       ColumnSpacing="18">
                     <Border Classes="card">
                         <StackPanel Spacing="12">
@@ -311,7 +316,49 @@
                     </Border>
                 </Grid>
 
-                <Grid ColumnDefinitions="0.9*,1.1*"
+                <Border x:Name="TimelineView"
+                        Classes="card">
+                    <Grid ColumnDefinitions="0.95*,1.05*"
+                          ColumnSpacing="18">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Zeitstrahl"
+                                       Classes="display"
+                                       FontSize="30" />
+                            <TextBlock Text="Chronologische Sicht auf alle Ereignisse oder auf die aktuell ausgewählte Person."
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10">
+                                <Border Background="{StaticResource ParchmentTintBrush}" CornerRadius="6" Padding="10,6">
+                                    <TextBlock Text="Alle Ereignisse" Foreground="{StaticResource InkGreenBrush}" />
+                                </Border>
+                                <Border Background="#F4DFAF" CornerRadius="6" Padding="10,6">
+                                    <TextBlock Text="Aktuelle Person" Foreground="{StaticResource InkGreenBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <Button Classes="secondary"
+                                    Content="Ereignis erfassen"
+                                    Click="CreateEventButton_Click" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    Spacing="12">
+                            <TextBlock Text="Einträge"
+                                       Foreground="{StaticResource InkGreenBrush}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold" />
+                            <ListBox x:Name="TimelineModuleListBox"
+                                     MinHeight="260" />
+                            <TextBlock x:Name="TimelineModuleEmptyText"
+                                       Text="Noch keine Ereignisse für die Zeitleiste."
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid x:Name="PeopleView"
+                      ColumnDefinitions="0.9*,1.1*"
                       ColumnSpacing="18">
                     <Border Classes="card">
                         <StackPanel Spacing="14">
@@ -415,7 +462,8 @@
                     </Border>
                 </Grid>
 
-                <Grid ColumnDefinitions="1.05*,0.95*"
+                <Grid x:Name="RelationshipsView"
+                      ColumnDefinitions="1.05*,0.95*"
                       ColumnSpacing="18">
                     <Border Classes="card">
                         <StackPanel Spacing="14">
@@ -472,7 +520,8 @@
                     </Border>
                 </Grid>
 
-                <Border Classes="card">
+                <Border x:Name="FamilyTreeView"
+                        Classes="card">
                     <StackPanel Spacing="14">
                         <TextBlock Text="Stammbaum"
                                    Classes="display"
@@ -502,7 +551,8 @@
                     </StackPanel>
                 </Border>
 
-                <Grid ColumnDefinitions="1.05*,0.95*"
+                <Grid x:Name="EventsView"
+                      ColumnDefinitions="1.05*,0.95*"
                       ColumnSpacing="18">
                     <Border Classes="card">
                         <StackPanel Spacing="14">
@@ -556,7 +606,8 @@
                     </Border>
                 </Grid>
 
-                <Grid ColumnDefinitions="1.05*,0.95*"
+                <Grid x:Name="BibleReferencesView"
+                      ColumnDefinitions="1.05*,0.95*"
                       ColumnSpacing="18">
                     <Border Classes="card">
                         <StackPanel Spacing="14">
@@ -638,7 +689,8 @@
                     </Border>
                 </Grid>
 
-                <Grid ColumnDefinitions="1.05*,0.95*"
+                <Grid x:Name="MediaView"
+                      ColumnDefinitions="1.05*,0.95*"
                       ColumnSpacing="18">
                     <Border Classes="card">
                         <StackPanel Spacing="14">
@@ -707,6 +759,51 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+
+                <Border x:Name="MapPlaceholderView"
+                        Classes="card">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="Karte (bald)"
+                                   Classes="display"
+                                   FontSize="30" />
+                        <TextBlock Text="Die Kartenansicht ist noch nicht umgesetzt. Später sollen hier Orte, Reisen und Ereignisse räumlich verbunden werden."
+                                   Classes="body"
+                                   TextWrapping="Wrap" />
+                        <Button Classes="secondary"
+                                Content="Kartenmodul noch nicht umgesetzt"
+                                IsEnabled="False" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="PlacesPlaceholderView"
+                        Classes="card">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="Orte (bald)"
+                                   Classes="display"
+                                   FontSize="30" />
+                        <TextBlock Text="Die Ortsverwaltung ist noch nicht umgesetzt. In einem späteren Schritt werden Orte, Regionen und Fundstellen hier gepflegt."
+                                   Classes="body"
+                                   TextWrapping="Wrap" />
+                        <Button Classes="secondary"
+                                Content="Ortsmodul noch nicht umgesetzt"
+                                IsEnabled="False" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="ResearchQuestionsPlaceholderView"
+                        Classes="card">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="Forschungsfragen (bald)"
+                                   Classes="display"
+                                   FontSize="30" />
+                        <TextBlock Text="Forschungsfragen sind noch nicht umgesetzt. Später sollen offene Fragen, Hypothesen und Klärungen hier gesammelt werden."
+                                   Classes="body"
+                                   TextWrapping="Wrap" />
+                        <Button Classes="secondary"
+                                Content="Forschungsmodul noch nicht umgesetzt"
+                                IsEnabled="False" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </Grid>

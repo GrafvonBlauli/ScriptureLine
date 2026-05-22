@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private IReadOnlyList<Relationship> _currentRelationships = Array.Empty<Relationship>();
     private IReadOnlyList<ScriptureEvent> _currentEvents = Array.Empty<ScriptureEvent>();
     private IReadOnlyList<MediaFile> _mediaFiles = Array.Empty<MediaFile>();
+    private AppModule _currentModule = AppModule.Dashboard;
 
     public MainWindow()
     {
@@ -41,7 +42,96 @@ public partial class MainWindow : Window
         InitializePersonForm();
         InitializeRelationshipForm();
         InitializeEventForm();
+        ShowModule(AppModule.Dashboard);
         RestoreLastProject();
+    }
+
+    private void NavigateDashboardButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.Dashboard);
+    }
+
+    private void NavigatePeopleButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.People);
+    }
+
+    private void NavigateFamilyTreeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.FamilyTree);
+    }
+
+    private void NavigateTimelineButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.Timeline);
+    }
+
+    private void NavigateMapButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.Map);
+    }
+
+    private void NavigateEventsButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.Events);
+    }
+
+    private void NavigatePlacesButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.Places);
+    }
+
+    private void NavigateBibleReferencesButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.BibleReferences);
+    }
+
+    private void NavigateMediaButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.Media);
+    }
+
+    private void NavigateResearchQuestionsButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ShowModule(AppModule.ResearchQuestions);
+    }
+
+    private void ShowModule(AppModule module)
+    {
+        _currentModule = module;
+        var dashboardVisible = module == AppModule.Dashboard;
+        DashboardHeroView.IsVisible = dashboardVisible;
+        DashboardStatsView.IsVisible = dashboardVisible;
+        DashboardProjectView.IsVisible = dashboardVisible;
+        DashboardTreePreviewView.IsVisible = dashboardVisible;
+        DashboardActionsView.IsVisible = dashboardVisible;
+
+        PeopleView.IsVisible = module == AppModule.People;
+        RelationshipsView.IsVisible = module == AppModule.FamilyTree;
+        FamilyTreeView.IsVisible = module == AppModule.FamilyTree;
+        TimelineView.IsVisible = module == AppModule.Timeline;
+        EventsView.IsVisible = module == AppModule.Events;
+        BibleReferencesView.IsVisible = module == AppModule.BibleReferences;
+        MediaView.IsVisible = module == AppModule.Media;
+        MapPlaceholderView.IsVisible = module == AppModule.Map;
+        PlacesPlaceholderView.IsVisible = module == AppModule.Places;
+        ResearchQuestionsPlaceholderView.IsVisible = module == AppModule.ResearchQuestions;
+
+        SetNavActive(NavDashboardButton, module == AppModule.Dashboard);
+        SetNavActive(NavPeopleButton, module == AppModule.People);
+        SetNavActive(NavFamilyTreeButton, module == AppModule.FamilyTree);
+        SetNavActive(NavTimelineButton, module == AppModule.Timeline);
+        SetNavActive(NavMapButton, module == AppModule.Map);
+        SetNavActive(NavEventsButton, module == AppModule.Events);
+        SetNavActive(NavPlacesButton, module == AppModule.Places);
+        SetNavActive(NavBibleReferencesButton, module == AppModule.BibleReferences);
+        SetNavActive(NavMediaButton, module == AppModule.Media);
+        SetNavActive(NavResearchQuestionsButton, module == AppModule.ResearchQuestions);
+    }
+
+    private static void SetNavActive(Button button, bool isActive)
+    {
+        button.Classes.Set("active", isActive);
     }
 
     private async void CreateProjectButton_Click(object? sender, RoutedEventArgs e)
@@ -92,6 +182,7 @@ public partial class MainWindow : Window
 
     private void CreatePersonButton_Click(object? sender, RoutedEventArgs e)
     {
+        ShowModule(AppModule.People);
         _currentPerson = new Person();
         _isCurrentPersonPersisted = false;
         _currentRelationship = null;
@@ -238,6 +329,7 @@ public partial class MainWindow : Window
 
     private void CreateEventButton_Click(object? sender, RoutedEventArgs e)
     {
+        ShowModule(AppModule.Events);
         _currentEvent = new ScriptureEvent();
         ClearEventForm();
         EventFormStatusText.Text = _currentPerson is null
@@ -675,17 +767,23 @@ public partial class MainWindow : Window
     private void RefreshTimeline()
     {
         var entries = _timelineBuilder.Build(_currentEvents);
-        TimelineListBox.ItemsSource = entries
+        var timelineItems = entries
             .Select(entry => new TimelineListItem(
                 entry.EventId,
                 $"{entry.DateText} - {DisplayText.For(entry.EventType)}: {entry.Title}",
                 entry.Description))
             .ToList();
-        TimelineEmptyText.Text = entries.Count == 0
+
+        TimelineListBox.ItemsSource = timelineItems;
+        TimelineModuleListBox.ItemsSource = timelineItems;
+
+        var statusText = entries.Count == 0
             ? "Noch keine Ereignisse für die Zeitleiste."
             : _currentPerson is null
                 ? $"{entries.Count} Ereignis(se) in der globalen Zeitleiste."
                 : $"{entries.Count} Ereignis(se) für die ausgewählte Person.";
+        TimelineEmptyText.Text = statusText;
+        TimelineModuleEmptyText.Text = statusText;
     }
 
     private async Task RefreshBibleReferencesAsync()

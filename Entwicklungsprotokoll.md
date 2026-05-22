@@ -180,4 +180,14 @@
 **Geänderte Bereiche:** `docs/ui-function-matrix.md`, `MainWindow.axaml`, `MainWindow.axaml.cs`, Rendering-Timeline, Timeline- und UI-Matrix-Tests.
 **Ergebnis:** Alle verdrahteten Click-Handler sind testbar vorhanden. Die Dashboard-Zeitleiste nutzt jetzt eine erste echte Timeline-Liste aus Ereignissen und zeigt auch undatierte Ereignisse als „ohne Datierung“ an.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 37 Tests in 1 m 30 s.
-**Offene Punkte:** Commit `Verify UI actions and prepare timeline` erstellen und nach GitHub pushen.
+**Commit:** `d7d42ca Verify UI actions and prepare timeline`
+**Push:** Erfolgreich nach GitHub, `main -> origin/main`.
+
+### 2026-05-22 18:28:30 +02:00 - Navigierbare Modulansichten ergänzt
+
+**Kategorie:** UI-Navigation / Modulflächen / Tests / Dokumentation
+**Aktion:** Die linke Sidebar wurde von statischer Beschriftung zu echter Modulnavigation umgebaut. Das Dashboard bleibt Startseite, während Personen, Stammbaum, Zeitstrahl, Ereignisse, Bibelstellen und Mediathek eigene sichtbare Oberflächen bekommen.
+**Geänderte Bereiche:** `AppModule`, `MainWindow.axaml`, `MainWindow.axaml.cs`, `docs/ui-function-matrix.md`, `UiFunctionMatrixTests`.
+**Ergebnis:** Sidebar-Schaltflächen wechseln über `ShowModule(AppModule module)` zwischen den Arbeitsbereichen. Dashboard-Schnellzugriffe öffnen direkt das passende Modul. Karte, Orte und Forschungsfragen sind als eigene Platzhalterseiten erreichbar und klar als noch nicht umgesetzt markiert.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. Erster `dotnet test --no-build`-Lauf brach nach 124 s wegen Timeout ab; erneuter Lauf mit längerem Timeout erfolgreich mit 39 Tests in 2 m 9 s.
+**Offene Punkte:** Commit `Add navigable module views` erstellen und nach GitHub pushen.
