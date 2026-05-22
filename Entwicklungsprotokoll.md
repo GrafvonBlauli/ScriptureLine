@@ -170,4 +170,14 @@
 **Geänderte Bereiche:** Core-Modelle `MediaFile`, `MediaType`, `MediaLink`, `LinkedEntityType`; Infrastructure-Repositories `IMediaRepository`, `MediaRepository`; `MediaImportService`; SQLite-Schema `MediaFiles`/`MediaLinks`; Dashboard-/Mediathek-UI; Mediathek-Tests.
 **Ergebnis:** Bilder, PDFs, Dokumente, Karten und sonstige Dateien können importiert, gesucht, beschrieben und mit Personen oder Ereignissen verknüpft werden. Bildmedien können als Personenportrait gesetzt werden. Fehlende Dateien werden erkannt und als Status angezeigt.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 33 Tests in 2 m 34 s.
-**Offene Punkte:** Commit `Add media library foundation` erstellen und nach GitHub pushen.
+**Commit:** `801bf65 Add media library foundation`
+**Push:** Erfolgreich nach GitHub, `main -> origin/main`.
+
+### 2026-05-22 08:31:14 +02:00 - UI-Funktionsprüfung und Timeline vorbereitet
+
+**Kategorie:** UI-Prüfung / Timeline / Tests / Dokumentation
+**Aktion:** Sichtbare UI-Elemente wurden statisch gegen vorhandene Handler geprüft und als Funktionsmatrix dokumentiert. Platzhalter wie Karte, Orte, Forschungsfragen und Ort anlegen wurden klar als kommende Funktionen gekennzeichnet.
+**Geänderte Bereiche:** `docs/ui-function-matrix.md`, `MainWindow.axaml`, `MainWindow.axaml.cs`, Rendering-Timeline, Timeline- und UI-Matrix-Tests.
+**Ergebnis:** Alle verdrahteten Click-Handler sind testbar vorhanden. Die Dashboard-Zeitleiste nutzt jetzt eine erste echte Timeline-Liste aus Ereignissen und zeigt auch undatierte Ereignisse als „ohne Datierung“ an.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 37 Tests in 1 m 30 s.
+**Offene Punkte:** Commit `Verify UI actions and prepare timeline` erstellen und nach GitHub pushen.

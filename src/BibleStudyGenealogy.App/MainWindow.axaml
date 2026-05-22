@@ -27,16 +27,16 @@
                 <StackPanel Grid.Row="1"
                             Margin="0,36,0,0"
                             Spacing="8">
-                    <Button Classes="nav active" Content="Dashboard" />
-                    <Button Classes="nav" Content="Personen" />
-                    <Button Classes="nav" Content="Stammbaum" />
-                    <Button Classes="nav" Content="Zeitstrahl" />
-                    <Button Classes="nav" Content="Karte" />
-                    <Button Classes="nav" Content="Ereignisse" />
-                    <Button Classes="nav" Content="Orte" />
-                    <Button Classes="nav" Content="Bibelstellen" />
-                    <Button Classes="nav" Content="Mediathek" />
-                    <Button Classes="nav" Content="Forschungsfragen" />
+                    <Button Classes="nav active" Content="Dashboard" ToolTip.Tip="Aktuelle Gesamtansicht" />
+                    <Button Classes="nav" Content="Personen" ToolTip.Tip="Personenbereich ist weiter unten auf dieser Seite verfügbar." />
+                    <Button Classes="nav" Content="Stammbaum" ToolTip.Tip="Stammbaum-Vorschau ist weiter unten auf dieser Seite verfügbar." />
+                    <Button Classes="nav" Content="Zeitstrahl (Vorschau)" ToolTip.Tip="Erste Timeline-Liste ist im Dashboard sichtbar." />
+                    <Button Classes="nav" Content="Karte (bald)" ToolTip.Tip="Kartenansicht ist noch nicht umgesetzt." IsEnabled="False" />
+                    <Button Classes="nav" Content="Ereignisse" ToolTip.Tip="Ereignisbereich ist weiter unten auf dieser Seite verfügbar." />
+                    <Button Classes="nav" Content="Orte (bald)" ToolTip.Tip="Ortsverwaltung ist noch nicht umgesetzt." IsEnabled="False" />
+                    <Button Classes="nav" Content="Bibelstellen" ToolTip.Tip="Bibelstellenbereich ist weiter unten auf dieser Seite verfügbar." />
+                    <Button Classes="nav" Content="Mediathek" ToolTip.Tip="Mediathek ist weiter unten auf dieser Seite verfügbar." />
+                    <Button Classes="nav" Content="Forschungsfragen (bald)" ToolTip.Tip="Forschungsfragen sind noch nicht umgesetzt." IsEnabled="False" />
                 </StackPanel>
 
                 <Border Grid.Row="2"
@@ -140,7 +140,12 @@
                     <Border Grid.Column="2" Classes="card">
                         <StackPanel Spacing="8">
                             <TextBlock Text="Zeitleiste" Foreground="{StaticResource InkGreenBrush}" FontSize="18" FontWeight="SemiBold" />
-                            <TextBlock Text="Deine Zeitleiste ist noch leer." Classes="body" TextWrapping="Wrap" />
+                            <ListBox x:Name="TimelineListBox"
+                                     MinHeight="96" />
+                            <TextBlock x:Name="TimelineEmptyText"
+                                       Text="Noch keine Ereignisse für die Zeitleiste."
+                                       Classes="body"
+                                       TextWrapping="Wrap" />
                             <TextBlock x:Name="RelationshipCountText" Text="0 Beziehungen vorbereitet" Classes="body" FontSize="12" />
                         </StackPanel>
                     </Border>
@@ -291,8 +296,10 @@
                                         Content="Person anlegen"
                                         Click="CreatePersonButton_Click"
                                         IsEnabled="False" />
-                                <Button Classes="secondary"
-                                        Content="Ort anlegen"
+                                <Button x:Name="QuickAddPlaceButton"
+                                        Classes="secondary"
+                                        Content="Ort anlegen (bald)"
+                                        ToolTip.Tip="Ortsverwaltung ist noch nicht umgesetzt."
                                         IsEnabled="False" />
                                 <Button x:Name="QuickAddEventButton"
                                         Classes="secondary"

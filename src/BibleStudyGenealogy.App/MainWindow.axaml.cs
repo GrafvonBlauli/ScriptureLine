@@ -4,6 +4,7 @@ using Avalonia.Platform.Storage;
 using BibleStudyGenealogy.Core.Models;
 using BibleStudyGenealogy.Infrastructure.Repositories;
 using BibleStudyGenealogy.Infrastructure.Services;
+using BibleStudyGenealogy.Rendering.Timeline;
 using BibleStudyGenealogy.Rendering.TreeLayout;
 using System.Text.Json;
 using ScriptureEvent = BibleStudyGenealogy.Core.Models.Event;
@@ -20,6 +21,7 @@ public partial class MainWindow : Window
     private IBibleReferenceRepository? _bibleReferenceRepository;
     private IMediaRepository? _mediaRepository;
     private readonly FamilyTreeBuilder _familyTreeBuilder = new();
+    private readonly TimelineBuilder _timelineBuilder = new();
     private readonly MediaImportService _mediaImportService = new();
     private ProjectWorkspace? _currentWorkspace;
     private Person? _currentPerson;
@@ -124,6 +126,7 @@ public partial class MainWindow : Window
             PersonFormStatusText.Text = "Person wurde gespeichert.";
             await RefreshPeopleAsync();
             await RefreshStatisticsAsync();
+            RefreshTimeline();
         }
         catch (Exception exception)
         {
@@ -155,6 +158,7 @@ public partial class MainWindow : Window
         PersonFormStatusText.Text = "Person geladen.";
         await RefreshRelationshipsAsync();
         await RefreshEventsAsync();
+        RefreshTimeline();
         await RefreshMediaFilesAsync();
     }
 
@@ -278,6 +282,7 @@ public partial class MainWindow : Window
                 : "Ereignis wurde gespeichert und mit der ausgewählten Person verbunden.";
             await RefreshEventsAsync();
             await RefreshStatisticsAsync();
+            RefreshTimeline();
         }
         catch (Exception exception)
         {
@@ -541,6 +546,7 @@ public partial class MainWindow : Window
         await RefreshPeopleAsync();
         await RefreshRelationshipsAsync();
         await RefreshEventsAsync();
+        RefreshTimeline();
         await RefreshBibleReferencesAsync();
         await RefreshMediaFilesAsync();
         await _appStateStore.SaveAsync(new AppState(workspace.RootDirectory));
@@ -643,6 +649,7 @@ public partial class MainWindow : Window
         {
             EventsListBox.ItemsSource = Array.Empty<EventListItem>();
             EventsEmptyText.Text = "Noch kein Projekt geöffnet.";
+            RefreshTimeline();
             return;
         }
 
@@ -662,6 +669,23 @@ public partial class MainWindow : Window
                 ? "Noch keine Ereignisse erfasst."
                 : "Für diese Person sind noch keine Ereignisse erfasst."
             : $"{eventItems.Count} Ereignis(se) erfasst.";
+        RefreshTimeline();
+    }
+
+    private void RefreshTimeline()
+    {
+        var entries = _timelineBuilder.Build(_currentEvents);
+        TimelineListBox.ItemsSource = entries
+            .Select(entry => new TimelineListItem(
+                entry.EventId,
+                $"{entry.DateText} - {DisplayText.For(entry.EventType)}: {entry.Title}",
+                entry.Description))
+            .ToList();
+        TimelineEmptyText.Text = entries.Count == 0
+            ? "Noch keine Ereignisse für die Zeitleiste."
+            : _currentPerson is null
+                ? $"{entries.Count} Ereignis(se) in der globalen Zeitleiste."
+                : $"{entries.Count} Ereignis(se) für die ausgewählte Person.";
     }
 
     private async Task RefreshBibleReferencesAsync()
@@ -1047,6 +1071,16 @@ public partial class MainWindow : Window
     }
 
     private sealed record EventListItem(Guid Id, string Title, string Description)
+    {
+        public override string ToString()
+        {
+            return string.IsNullOrWhiteSpace(Description)
+                ? Title
+                : $"{Title} - {Description}";
+        }
+    }
+
+    private sealed record TimelineListItem(Guid Id, string Title, string Description)
     {
         public override string ToString()
         {
