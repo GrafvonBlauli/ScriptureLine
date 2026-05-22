@@ -21,7 +21,7 @@ Diese Matrix hält fest, welche sichtbaren Bedienelemente bereits eine echte Fun
 | Sidebar | Karte, Orte, Forschungsfragen | Platzhalterseite | erreichbar, aber klar als noch nicht umgesetzt markiert |
 | Personen | Suche, Auswahl, Speichern | aktiv | über Repository-Tests und Smoke-Test-Szenarien abgesichert |
 | Beziehungen | Speichern, Auswählen, Archivieren | aktiv | Tests decken Speichern, Duplikate, Archivierung und FK-Integrität ab |
-| Stammbaum | Zoombare Baumfläche, Karten, Plus-Overlay, Seitenpanel | aktiv in Version 0.2 | `FamilyTreeBuilder`-Tests prüfen Layout, Generationenlimit, Gesamtbaum und unsichere Beziehungen |
+| Stammbaum | Zoombare Baumfläche, Karten, Plus-Overlay, Seitenpanel | aktiv in Version 0.2 | Personen können im Sideboard bearbeitet werden; Verwandte, Beziehungen, Geburts-/Sterbedaten und Altersberechnung sind integriert |
 | Ereignisse | Speichern, Auswahl | aktiv | Tests decken Speichern, Update, Datierung und Personen-Verknüpfung ab |
 | Bibelstellen | Speichern, Auswahl | aktiv | Tests decken Speichern, Suche, Bereichsvalidierung und Event-Verknüpfung ab |
 | Mediathek | Import, Suche, Beschreibung, Verknüpfung, Portrait | aktiv | Tests decken Import, Pfade, Suche, Links, fehlende Dateien und PortraitId ab |

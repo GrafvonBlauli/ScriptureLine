@@ -199,3 +199,12 @@
 **Ergebnis:** Personen werden als Karten mit Linien dargestellt. Klick auf eine Karte wählt sie im Seitenpanel aus, der Plus-Knopf öffnet ein Overlay für Elternteil, Kind, Partner oder Geschwister. Neue Personen werden mit passender Beziehung gespeichert und der Baum aktualisiert.
 **Verifikation:** Nach Korrektur der Buildfehler erfolgreich geprüft: `dotnet build` mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 42 Tests in 1 m 41 s.
 **Offene Punkte:** Commit `Add interactive family tree editor` erstellen und nach GitHub pushen.
+
+### 2026-05-22 22:39:41 +02:00 - Stammbaum-Sideboard und Lebensdaten erweitert
+
+**Kategorie:** Stammbaum / Personenbearbeitung / Lebensdaten / SQLite / Tests
+**Aktion:** Das Stammbaum-Sideboard wurde zu einer direkten Bearbeitungsfläche erweitert. Personen können dort mit Name, Rolle, Status, Geschlecht, Kurzbeschreibung sowie Geburts- und Sterbedaten bearbeitet werden. Das Verwandte-hinzufügen-Overlay speichert nun ebenfalls Lebensdaten.
+**Geänderte Bereiche:** `MainWindow.axaml`, `MainWindow.axaml.cs`, `PersonRepository`, `LocalProjectService`, `PersonRepositoryTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Geburts- und Sterbedaten werden als Text plus extrahiertem Jahr in SQLite gespeichert und beim Öffnen wieder geladen. Aus Alter + Geburtsjahr kann das Sterbejahr berechnet werden; aus Alter + Sterbejahr das Geburtsjahr.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 43 Tests in 1 m 36 s.
+**Offene Punkte:** Commit erstellen und nach GitHub pushen.

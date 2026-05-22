@@ -30,6 +30,10 @@ public sealed class PersonRepository : IPersonRepository
                    Occupation,
                    ShortDescription,
                    LongDescription,
+                   BirthDateText,
+                   BirthYear,
+                   DeathDateText,
+                   DeathYear,
                    PortraitMediaFileId,
                    Status,
                    CreatedAtUtc,
@@ -71,6 +75,10 @@ public sealed class PersonRepository : IPersonRepository
                    Occupation,
                    ShortDescription,
                    LongDescription,
+                   BirthDateText,
+                   BirthYear,
+                   DeathDateText,
+                   DeathYear,
                    PortraitMediaFileId,
                    Status,
                    CreatedAtUtc,
@@ -115,6 +123,10 @@ public sealed class PersonRepository : IPersonRepository
                 Occupation,
                 ShortDescription,
                 LongDescription,
+                BirthDateText,
+                BirthYear,
+                DeathDateText,
+                DeathYear,
                 PortraitMediaFileId,
                 Status,
                 CreatedAtUtc,
@@ -132,6 +144,10 @@ public sealed class PersonRepository : IPersonRepository
                 $occupation,
                 $shortDescription,
                 $longDescription,
+                $birthDateText,
+                $birthYear,
+                $deathDateText,
+                $deathYear,
                 $portraitMediaFileId,
                 $status,
                 $createdAtUtc,
@@ -148,6 +164,10 @@ public sealed class PersonRepository : IPersonRepository
                 Occupation = excluded.Occupation,
                 ShortDescription = excluded.ShortDescription,
                 LongDescription = excluded.LongDescription,
+                BirthDateText = excluded.BirthDateText,
+                BirthYear = excluded.BirthYear,
+                DeathDateText = excluded.DeathDateText,
+                DeathYear = excluded.DeathYear,
                 PortraitMediaFileId = excluded.PortraitMediaFileId,
                 Status = excluded.Status,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
@@ -164,6 +184,10 @@ public sealed class PersonRepository : IPersonRepository
         command.Parameters.AddWithValue("$occupation", person.Occupation.Trim());
         command.Parameters.AddWithValue("$shortDescription", person.ShortDescription.Trim());
         command.Parameters.AddWithValue("$longDescription", person.LongDescription.Trim());
+        command.Parameters.AddWithValue("$birthDateText", person.BirthDateInfo?.ApproximationText.Trim() ?? string.Empty);
+        command.Parameters.AddWithValue("$birthYear", person.BirthDateInfo?.Year ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$deathDateText", person.DeathDateInfo?.ApproximationText.Trim() ?? string.Empty);
+        command.Parameters.AddWithValue("$deathYear", person.DeathDateInfo?.Year ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("$portraitMediaFileId", person.PortraitMediaFileId?.ToString() ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("$status", person.Status.ToString());
         command.Parameters.AddWithValue("$createdAtUtc", person.CreatedAtUtc.ToString("O"));
@@ -197,10 +221,28 @@ public sealed class PersonRepository : IPersonRepository
             Occupation = reader.GetString(8),
             ShortDescription = reader.GetString(9),
             LongDescription = reader.GetString(10),
-            PortraitMediaFileId = reader.IsDBNull(11) ? null : Guid.Parse(reader.GetString(11)),
-            Status = Enum.Parse<PersonStatus>(reader.GetString(12)),
-            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(13)),
-            UpdatedAtUtc = DateTimeOffset.Parse(reader.GetString(14))
+            BirthDateInfo = ReadDateInfo(reader.GetString(11), reader.IsDBNull(12) ? null : reader.GetInt32(12)),
+            DeathDateInfo = ReadDateInfo(reader.GetString(13), reader.IsDBNull(14) ? null : reader.GetInt32(14)),
+            PortraitMediaFileId = reader.IsDBNull(15) ? null : Guid.Parse(reader.GetString(15)),
+            Status = Enum.Parse<PersonStatus>(reader.GetString(16)),
+            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(17)),
+            UpdatedAtUtc = DateTimeOffset.Parse(reader.GetString(18))
+        };
+    }
+
+    private static DateInfo? ReadDateInfo(string approximationText, int? year)
+    {
+        if (string.IsNullOrWhiteSpace(approximationText) && year is null)
+        {
+            return null;
+        }
+
+        return new DateInfo
+        {
+            DateType = string.IsNullOrWhiteSpace(approximationText) ? DateType.ExactYear : DateType.TextOnly,
+            ApproximationText = approximationText,
+            Year = year,
+            CertaintyLevel = CertaintyLevel.Unknown
         };
     }
 }

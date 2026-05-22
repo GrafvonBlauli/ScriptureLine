@@ -73,4 +73,37 @@ public sealed class PersonRepositoryTests
         Assert.Equal(PersonStatus.Uncertain, loadedPerson.Status);
         Assert.Equal(1, count);
     }
+
+    [Fact]
+    public async Task SaveAsync_PersistsBirthAndDeathDates()
+    {
+        await using var project = await TestProject.CreateAsync();
+        var repository = new PersonRepository(project.Workspace.DatabasePath);
+        var person = new Person
+        {
+            MainName = "Ursula Täuber",
+            BirthDateInfo = new DateInfo
+            {
+                ApproximationText = "ca. 1380",
+                Year = 1380,
+                DateType = DateType.TextOnly
+            },
+            DeathDateInfo = new DateInfo
+            {
+                ApproximationText = "1449",
+                Year = 1449,
+                DateType = DateType.ExactYear
+            }
+        };
+
+        await repository.SaveAsync(person);
+
+        var loadedPerson = await repository.GetByIdAsync(person.Id);
+
+        Assert.NotNull(loadedPerson);
+        Assert.Equal("ca. 1380", loadedPerson.BirthDateInfo?.ApproximationText);
+        Assert.Equal(1380, loadedPerson.BirthDateInfo?.Year);
+        Assert.Equal("1449", loadedPerson.DeathDateInfo?.ApproximationText);
+        Assert.Equal(1449, loadedPerson.DeathDateInfo?.Year);
+    }
 }

@@ -416,7 +416,9 @@ public partial class MainWindow : Window
             MainName = AddRelativeNameTextBox.Text.Trim(),
             PrimaryRole = AddRelativeRoleTextBox.Text?.Trim() ?? string.Empty,
             Gender = (AddRelativeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown,
-            Status = (AddRelativeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active
+            Status = (AddRelativeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active,
+            BirthDateInfo = CreateDateInfo(AddRelativeBirthDateTextBox.Text),
+            DeathDateInfo = CreateDateInfo(AddRelativeDeathDateTextBox.Text)
         };
         var relationship = CreateRelationshipForRelative(newPerson.Id, sourcePersonId);
 
@@ -440,6 +442,74 @@ public partial class MainWindow : Window
     private void CancelRelativeButton_Click(object? sender, RoutedEventArgs e)
     {
         AddRelativeOverlay.IsVisible = false;
+    }
+
+    private async void TreeSavePersonButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_personRepository is null || _treeSelectedPersonId is null)
+        {
+            FamilyTreeStatusText.Text = "Wähle zuerst eine Person im Stammbaum aus.";
+            return;
+        }
+
+        var person = await _personRepository.GetByIdAsync(_treeSelectedPersonId.Value);
+        if (person is null)
+        {
+            FamilyTreeStatusText.Text = "Person wurde nicht gefunden.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TreeMainNameTextBox.Text))
+        {
+            FamilyTreeStatusText.Text = "Bitte gib mindestens einen Hauptnamen ein.";
+            return;
+        }
+
+        person.MainName = TreeMainNameTextBox.Text.Trim();
+        person.PrimaryRole = TreeRoleTextBox.Text?.Trim() ?? string.Empty;
+        person.ShortDescription = TreeShortDescriptionTextBox.Text?.Trim() ?? string.Empty;
+        person.Gender = (TreeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown;
+        person.Status = (TreeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active;
+        person.BirthDateInfo = CreateDateInfo(TreeBirthDateTextBox.Text);
+        person.DeathDateInfo = CreateDateInfo(TreeDeathDateTextBox.Text);
+
+        await _personRepository.SaveAsync(person);
+        if (_currentPerson?.Id == person.Id)
+        {
+            _currentPerson = person;
+            FillFormFromPerson(person);
+        }
+
+        await RefreshPeopleAsync();
+        await RefreshTreePreviewAsync();
+        SelectTreePerson(person.Id);
+        FamilyTreeStatusText.Text = "Person wurde im Stammbaum gespeichert.";
+    }
+
+    private void CalculateDeathFromAgeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!TryReadInt(TreeAgeTextBox.Text, out var age) || !TryReadYear(TreeBirthDateTextBox.Text, out var birthYear))
+        {
+            FamilyTreeStatusText.Text = "Gib ein Alter und ein Geburtsjahr ein, um das Sterbejahr zu berechnen.";
+            return;
+        }
+
+        var deathYear = birthYear + age;
+        TreeDeathDateTextBox.Text = deathYear.ToString();
+        FamilyTreeStatusText.Text = $"Sterbejahr aus Alter berechnet: {deathYear}.";
+    }
+
+    private void CalculateBirthFromAgeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!TryReadInt(TreeAgeTextBox.Text, out var age) || !TryReadYear(TreeDeathDateTextBox.Text, out var deathYear))
+        {
+            FamilyTreeStatusText.Text = "Gib ein Alter und ein Sterbejahr ein, um das Geburtsjahr zu berechnen.";
+            return;
+        }
+
+        var birthYear = deathYear - age;
+        TreeBirthDateTextBox.Text = birthYear.ToString();
+        FamilyTreeStatusText.Text = $"Geburtsjahr aus Alter berechnet: {birthYear}.";
     }
 
     private void CreateEventButton_Click(object? sender, RoutedEventArgs e)
@@ -720,6 +790,9 @@ public partial class MainWindow : Window
         _currentEvent = null;
         _currentBibleReference = null;
         _currentMediaFile = null;
+        _treeSelectedPersonId = null;
+        _addRelativeSourcePersonId = null;
+        ClearTreePersonForm();
         var statistics = await _projectService.ReadStatisticsAsync(workspace);
 
         SidebarProjectTitle.Text = workspace.Settings.ProjectName;
@@ -821,6 +894,10 @@ public partial class MainWindow : Window
         AddRelativeStatusComboBox.SelectedIndex = 0;
         AddRelativeCertaintyComboBox.ItemsSource = DisplayOptions.CertaintyLevels();
         SelectEnumValue(AddRelativeCertaintyComboBox, CertaintyLevel.Likely);
+        TreeGenderComboBox.ItemsSource = DisplayOptions.Genders();
+        TreeGenderComboBox.SelectedIndex = 0;
+        TreeStatusComboBox.ItemsSource = DisplayOptions.PersonStatuses();
+        TreeStatusComboBox.SelectedIndex = 0;
     }
 
     private async Task RefreshPeopleAsync()
@@ -859,7 +936,8 @@ public partial class MainWindow : Window
             TreeOtherText.Text = "Weitere oder unsichere Beziehungen: keine";
             FamilyTreeStatusText.Text = "Wähle eine gespeicherte Person aus, um den Stammbaum zu zeichnen.";
             TreeSelectedPersonText.Text = "Noch keine Person ausgewählt.";
-            TreeEditPersonButton.IsEnabled = false;
+            ClearTreePersonForm();
+            TreeSavePersonButton.IsEnabled = false;
             TreeAddRelativeButton.IsEnabled = false;
             FamilyTreeCanvas.Children.Clear();
             return;
@@ -1111,6 +1189,8 @@ public partial class MainWindow : Window
         person.Occupation = OccupationTextBox.Text?.Trim() ?? string.Empty;
         person.ShortDescription = ShortDescriptionTextBox.Text?.Trim() ?? string.Empty;
         person.LongDescription = LongDescriptionTextBox.Text?.Trim() ?? string.Empty;
+        person.BirthDateInfo = CreateDateInfo(BirthDateTextBox.Text);
+        person.DeathDateInfo = CreateDateInfo(DeathDateTextBox.Text);
         person.Gender = (GenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown;
         person.Status = (PersonStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active;
     }
@@ -1126,6 +1206,8 @@ public partial class MainWindow : Window
         OccupationTextBox.Text = person.Occupation;
         ShortDescriptionTextBox.Text = person.ShortDescription;
         LongDescriptionTextBox.Text = person.LongDescription;
+        BirthDateTextBox.Text = FormatDateInfo(person.BirthDateInfo);
+        DeathDateTextBox.Text = FormatDateInfo(person.DeathDateInfo);
         SelectEnumValue(GenderComboBox, person.Gender);
         SelectEnumValue(PersonStatusComboBox, person.Status);
     }
@@ -1295,9 +1377,10 @@ public partial class MainWindow : Window
             FontSize = 13 * _familyTreeZoom,
             TextWrapping = TextWrapping.Wrap
         };
+        var person = _treePeople.FirstOrDefault(person => person.Id == node.PersonId);
         var roleText = new TextBlock
         {
-            Text = string.IsNullOrWhiteSpace(node.Role) ? DisplayTreeNodeKind(node.Kind) : node.Role,
+            Text = person is null ? DisplayTreeNodeKind(node.Kind) : FormatTreeCardDetail(person, node.Kind),
             Foreground = Brushes.DimGray,
             FontSize = 10 * _familyTreeZoom,
             TextWrapping = TextWrapping.Wrap
@@ -1334,9 +1417,38 @@ public partial class MainWindow : Window
         person ??= _treePeople.FirstOrDefault(person => person.Id == personId);
         TreeSelectedPersonText.Text = person is null
             ? "Person ist nicht in der aktuellen Liste sichtbar."
-            : $"{person.MainName}\n{person.PrimaryRole}";
-        TreeEditPersonButton.IsEnabled = true;
+            : $"{person.MainName}\n{FormatLifeDateLine(person)}";
+        if (person is not null)
+        {
+            FillTreePersonForm(person);
+        }
+
+        TreeSavePersonButton.IsEnabled = person is not null;
         TreeAddRelativeButton.IsEnabled = true;
+    }
+
+    private void FillTreePersonForm(Person person)
+    {
+        TreeMainNameTextBox.Text = person.MainName;
+        TreeRoleTextBox.Text = person.PrimaryRole;
+        TreeBirthDateTextBox.Text = FormatDateInfo(person.BirthDateInfo);
+        TreeDeathDateTextBox.Text = FormatDateInfo(person.DeathDateInfo);
+        TreeAgeTextBox.Text = TryGetLifeAge(person, out var age) ? age.ToString() : string.Empty;
+        TreeShortDescriptionTextBox.Text = person.ShortDescription;
+        SelectEnumValue(TreeGenderComboBox, person.Gender);
+        SelectEnumValue(TreeStatusComboBox, person.Status);
+    }
+
+    private void ClearTreePersonForm()
+    {
+        TreeMainNameTextBox.Text = string.Empty;
+        TreeRoleTextBox.Text = string.Empty;
+        TreeBirthDateTextBox.Text = string.Empty;
+        TreeDeathDateTextBox.Text = string.Empty;
+        TreeAgeTextBox.Text = string.Empty;
+        TreeShortDescriptionTextBox.Text = string.Empty;
+        TreeGenderComboBox.SelectedIndex = 0;
+        TreeStatusComboBox.SelectedIndex = 0;
     }
 
     private void OpenRelativeOverlay(Guid sourcePersonId)
@@ -1347,6 +1459,8 @@ public partial class MainWindow : Window
         AddRelativeTitleText.Text = $"Verwandte zu {sourceName}";
         AddRelativeNameTextBox.Text = string.Empty;
         AddRelativeRoleTextBox.Text = string.Empty;
+        AddRelativeBirthDateTextBox.Text = string.Empty;
+        AddRelativeDeathDateTextBox.Text = string.Empty;
         AddRelativeStatusText.Text = "Neue Person und Beziehung werden gemeinsam gespeichert.";
         AddRelativeOverlay.IsVisible = true;
         AddRelativeNameTextBox.Focus();
@@ -1429,6 +1543,92 @@ public partial class MainWindow : Window
         return $"{reference.Book} {reference.ChapterStart}{versePart}{endPart}{translation}";
     }
 
+    private static DateInfo? CreateDateInfo(string? text)
+    {
+        var trimmedText = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedText))
+        {
+            return null;
+        }
+
+        return new DateInfo
+        {
+            DateType = TryReadYear(trimmedText, out var year) && trimmedText == year.ToString()
+                ? DateType.ExactYear
+                : DateType.TextOnly,
+            ApproximationText = trimmedText,
+            Year = TryReadYear(trimmedText, out year) ? year : null,
+            CertaintyLevel = CertaintyLevel.Unknown
+        };
+    }
+
+    private static string FormatDateInfo(DateInfo? dateInfo)
+    {
+        if (dateInfo is null)
+        {
+            return string.Empty;
+        }
+
+        return string.IsNullOrWhiteSpace(dateInfo.ApproximationText)
+            ? dateInfo.Year?.ToString() ?? string.Empty
+            : dateInfo.ApproximationText;
+    }
+
+    private static string FormatLifeDateLine(Person person)
+    {
+        var birth = FormatDateInfo(person.BirthDateInfo);
+        var death = FormatDateInfo(person.DeathDateInfo);
+        if (string.IsNullOrWhiteSpace(birth) && string.IsNullOrWhiteSpace(death))
+        {
+            return string.IsNullOrWhiteSpace(person.PrimaryRole) ? "Keine Lebensdaten hinterlegt" : person.PrimaryRole;
+        }
+
+        var age = TryGetLifeAge(person, out var value) ? $" (~{value} Jahre)" : string.Empty;
+        return $"* {EmptyAsUnknown(birth)}   † {EmptyAsUnknown(death)}{age}";
+    }
+
+    private static string FormatTreeCardDetail(Person person, FamilyTreeNodeKind kind)
+    {
+        var lifeDate = FormatLifeDateLine(person);
+        if (!lifeDate.StartsWith('*') && !string.IsNullOrWhiteSpace(person.PrimaryRole))
+        {
+            return person.PrimaryRole;
+        }
+
+        return lifeDate.StartsWith('*')
+            ? lifeDate
+            : DisplayTreeNodeKind(kind);
+    }
+
+    private static bool TryGetLifeAge(Person person, out int age)
+    {
+        age = 0;
+        if (person.BirthDateInfo?.Year is null || person.DeathDateInfo?.Year is null)
+        {
+            return false;
+        }
+
+        age = person.DeathDateInfo.Year.Value - person.BirthDateInfo.Year.Value;
+        return age >= 0;
+    }
+
+    private static string EmptyAsUnknown(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "unbekannt" : value;
+    }
+
+    private static bool TryReadYear(string? value, out int year)
+    {
+        year = 0;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(value, @"-?\d{1,4}");
+        return match.Success && int.TryParse(match.Value, out year);
+    }
+
     private string FormatMediaTitle(MediaFile mediaFile)
     {
         var availability = _currentWorkspace is not null && _mediaImportService.FileExists(_currentWorkspace, mediaFile)
@@ -1503,6 +1703,8 @@ public partial class MainWindow : Window
         OccupationTextBox.Text = string.Empty;
         ShortDescriptionTextBox.Text = string.Empty;
         LongDescriptionTextBox.Text = string.Empty;
+        BirthDateTextBox.Text = string.Empty;
+        DeathDateTextBox.Text = string.Empty;
         GenderComboBox.SelectedIndex = 0;
         PersonStatusComboBox.SelectedIndex = 0;
     }

@@ -261,26 +261,60 @@ public sealed class LocalProjectService : IProjectService
         await using var schemaCommand = connection.CreateCommand();
         schemaCommand.CommandText = SchemaSql;
         await schemaCommand.ExecuteNonQueryAsync(cancellationToken);
+        await EnsurePersonLifeDateColumnsAsync(connection, cancellationToken);
         await EnsureRelationshipStatusColumnAsync(connection, cancellationToken);
+    }
+
+    private static async Task EnsurePersonLifeDateColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var columns = await ReadColumnNamesAsync(connection, "Persons", cancellationToken);
+        var requiredColumns = new Dictionary<string, string>
+        {
+            ["BirthDateText"] = "ALTER TABLE Persons ADD COLUMN BirthDateText TEXT NOT NULL DEFAULT '';",
+            ["BirthYear"] = "ALTER TABLE Persons ADD COLUMN BirthYear INTEGER NULL;",
+            ["DeathDateText"] = "ALTER TABLE Persons ADD COLUMN DeathDateText TEXT NOT NULL DEFAULT '';",
+            ["DeathYear"] = "ALTER TABLE Persons ADD COLUMN DeathYear INTEGER NULL;"
+        };
+
+        foreach (var column in requiredColumns)
+        {
+            if (columns.Contains(column.Key))
+            {
+                continue;
+            }
+
+            await using var addColumnCommand = connection.CreateCommand();
+            addColumnCommand.CommandText = column.Value;
+            await addColumnCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     private static async Task EnsureRelationshipStatusColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
     {
-        await using var readColumnsCommand = connection.CreateCommand();
-        readColumnsCommand.CommandText = "PRAGMA table_info(Relationships);";
-
-        await using var reader = await readColumnsCommand.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        var columns = await ReadColumnNamesAsync(connection, "Relationships", cancellationToken);
+        if (columns.Contains("Status"))
         {
-            if (string.Equals(reader.GetString(1), "Status", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
+            return;
         }
 
         await using var addColumnCommand = connection.CreateCommand();
         addColumnCommand.CommandText = "ALTER TABLE Relationships ADD COLUMN Status TEXT NOT NULL DEFAULT 'Active';";
         await addColumnCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<HashSet<string>> ReadColumnNamesAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken)
+    {
+        await using var readColumnsCommand = connection.CreateCommand();
+        readColumnsCommand.CommandText = $"PRAGMA table_info({tableName});";
+
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using var reader = await readColumnsCommand.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        return columns;
     }
 
     private const string SchemaSql = """
@@ -314,6 +348,10 @@ public sealed class LocalProjectService : IProjectService
             Occupation TEXT NOT NULL DEFAULT '',
             ShortDescription TEXT NOT NULL DEFAULT '',
             LongDescription TEXT NOT NULL DEFAULT '',
+            BirthDateText TEXT NOT NULL DEFAULT '',
+            BirthYear INTEGER NULL,
+            DeathDateText TEXT NOT NULL DEFAULT '',
+            DeathYear INTEGER NULL,
             PortraitMediaFileId TEXT NULL,
             Status TEXT NOT NULL,
             CreatedAtUtc TEXT NOT NULL,
