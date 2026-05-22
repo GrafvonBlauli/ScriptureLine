@@ -140,3 +140,24 @@
 **Ergebnis:** Aktive Beziehungen erscheinen in Listen und Zählern. Archivierte Beziehungen bleiben geladen, werden aber aus Standardlisten und Zählern ausgeblendet. Die App zeigt Eltern, Fokusperson, Partner, Kinder sowie weitere/unsichere Beziehungen als einfache Stammbaum-Vorschau.  
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 13 Tests.  
 **Offene Punkte:** Commit `Add simple family tree preview` erstellen und nach GitHub pushen.
+
+## 2026-05-22 - Version 0.4 Grundlage: Ereignisse und Bibelstellen
+
+- Core-Modelle für Ereignisse und Bibelstellen vorbereitet: `Event`, `EventType`, `BibleReference` und `BibleTranslation`.
+- SQLite-Schema um `Events`, `EventPersons`, `BibleReferences` und `EventBibleReferences` erweitert.
+- Neue Repository-Schichten ergänzt: `IEventRepository`/`EventRepository` sowie `IBibleReferenceRepository`/`BibleReferenceRepository`.
+- Dashboard-Statistiken um Ereignisse und Bibelstellen erweitert.
+- UI um erste Arbeitsbereiche für „Ereignisse“ und „Bibelstellen“ ergänzt; Ereignisse können mit der aktuell ausgewählten Person verknüpft werden.
+- Stammbaum-Vorschau visuell klarer gegliedert; unsichere/weitere Beziehungen sind als eigener Bereich sichtbar.
+- Tests für Ereignisse, Personen-Verknüpfung, Bibelstellen und Statistikzählung ergänzt.
+- Hinweis: `dotnet build` und `dotnet test` wurden im folgenden Stabilisierungsschritt nachgeholt.
+
+### 2026-05-22 08:02:05 +02:00 - Stabilisierung, Logikprüfung und Stresstest
+
+**Kategorie:** Stabilisierung / SQLite / Tests / Performance
+**Aktion:** Die Ereignis- und Bibelstellen-Grundlage wurde stabilisiert und um Integritätsprüfungen ergänzt. SQLite-Verbindungen werden zentral geöffnet und aktivieren Foreign Keys. Ungespeicherte Personen werden in der UI von gespeicherten Personen unterschieden, bevor Beziehungen oder Ereignis-Verknüpfungen angelegt werden.
+**Geänderte Bereiche:** `SqliteConnectionFactory`, Personen-/Beziehungs-/Ereignis-/Bibelstellen-Repositories, SQLite-Indexes, `MainWindow.axaml.cs`, Anzeigehelfer, Repository- und Performance-Tests.
+**Ergebnis:** Beziehungen, Event-Person-Verknüpfungen und Event-Bibelstellen-Verknüpfungen werden durch Foreign Keys abgesichert. Bibelstellen validieren positive Kapitel/Verse und logisch passende Endreferenzen. Der Codebehind wurde leicht entlastet, indem ComboBox-Anzeigeoptionen ausgelagert wurden.
+**Stresstest:** Mittleres Testprofil mit 2.000 Personen, 4.000 Beziehungen, 1.000 Ereignissen, 2.000 Bibelstellen und passenden Verknüpfungen ergänzt.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 26 Tests in 1 m 31 s.
+**Offene Punkte:** Commit `Stabilize events and add performance checks` erstellen und nach GitHub pushen.

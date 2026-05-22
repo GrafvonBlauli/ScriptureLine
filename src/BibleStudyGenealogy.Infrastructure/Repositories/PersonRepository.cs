@@ -15,8 +15,7 @@ public sealed class PersonRepository : IPersonRepository
 
     public async Task<IReadOnlyList<Person>> SearchAsync(string searchText, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -57,8 +56,7 @@ public sealed class PersonRepository : IPersonRepository
 
     public async Task<Person?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -101,8 +99,7 @@ public sealed class PersonRepository : IPersonRepository
 
         person.UpdatedAtUtc = now;
 
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -177,24 +174,12 @@ public sealed class PersonRepository : IPersonRepository
 
     public async Task<int> CountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Persons;";
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt32(result);
-    }
-
-    private string CreateConnectionString()
-    {
-        var builder = new SqliteConnectionStringBuilder
-        {
-            DataSource = _databasePath,
-            Pooling = false
-        };
-
-        return builder.ToString();
     }
 
     private static Person ReadPerson(SqliteDataReader reader)

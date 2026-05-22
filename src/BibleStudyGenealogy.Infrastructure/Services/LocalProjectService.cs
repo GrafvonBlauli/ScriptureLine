@@ -91,12 +91,18 @@ public sealed class LocalProjectService : IProjectService
 
         var personRepository = new PersonRepository(workspace.DatabasePath);
         var relationshipRepository = new RelationshipRepository(workspace.DatabasePath);
+        var eventRepository = new EventRepository(workspace.DatabasePath);
+        var bibleReferenceRepository = new BibleReferenceRepository(workspace.DatabasePath);
         var personCount = await personRepository.CountAsync(cancellationToken);
         var relationshipCount = await relationshipRepository.CountAsync(cancellationToken);
+        var eventCount = await eventRepository.CountAsync(cancellationToken);
+        var bibleReferenceCount = await bibleReferenceRepository.CountAsync(cancellationToken);
 
         return new ProjectStatistics(
             personCount,
             relationshipCount,
+            eventCount,
+            bibleReferenceCount,
             PlaceCount: 0,
             ResearchQuestionCount: 0);
     }
@@ -150,8 +156,7 @@ public sealed class LocalProjectService : IProjectService
 
     private static async Task InitializeDatabaseAsync(string databasePath, ProjectSettings settings, CancellationToken cancellationToken)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(databasePath, cancellationToken);
 
         await using var schemaCommand = connection.CreateCommand();
         schemaCommand.CommandText = SchemaSql;
@@ -195,8 +200,7 @@ public sealed class LocalProjectService : IProjectService
 
     private static async Task<ProjectSettings> ReadSettingsAsync(string databasePath, CancellationToken cancellationToken)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -229,8 +233,7 @@ public sealed class LocalProjectService : IProjectService
 
     private static async Task UpdateLastOpenedAsync(string databasePath, DateTimeOffset lastOpenedAtUtc, CancellationToken cancellationToken)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -250,8 +253,7 @@ public sealed class LocalProjectService : IProjectService
 
     private static async Task EnsureDatabaseSchemaAsync(string databasePath, CancellationToken cancellationToken)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString(databasePath));
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(databasePath, cancellationToken);
 
         await using var schemaCommand = connection.CreateCommand();
         schemaCommand.CommandText = SchemaSql;
@@ -276,17 +278,6 @@ public sealed class LocalProjectService : IProjectService
         await using var addColumnCommand = connection.CreateCommand();
         addColumnCommand.CommandText = "ALTER TABLE Relationships ADD COLUMN Status TEXT NOT NULL DEFAULT 'Active';";
         await addColumnCommand.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private static string CreateConnectionString(string databasePath)
-    {
-        var builder = new SqliteConnectionStringBuilder
-        {
-            DataSource = databasePath,
-            Pooling = false
-        };
-
-        return builder.ToString();
     }
 
     private const string SchemaSql = """
@@ -345,6 +336,59 @@ public sealed class LocalProjectService : IProjectService
 
         CREATE INDEX IF NOT EXISTS IX_Relationships_PersonAId ON Relationships(PersonAId);
         CREATE INDEX IF NOT EXISTS IX_Relationships_PersonBId ON Relationships(PersonBId);
+        CREATE INDEX IF NOT EXISTS IX_Relationships_Status ON Relationships(Status);
+        CREATE INDEX IF NOT EXISTS IX_Relationships_Status_PersonAId ON Relationships(Status, PersonAId);
+        CREATE INDEX IF NOT EXISTS IX_Relationships_Status_PersonBId ON Relationships(Status, PersonBId);
+
+        CREATE TABLE IF NOT EXISTS Events (
+            Id TEXT PRIMARY KEY,
+            Title TEXT NOT NULL,
+            EventType TEXT NOT NULL,
+            DateText TEXT NOT NULL DEFAULT '',
+            DateType TEXT NOT NULL DEFAULT 'Unknown',
+            DateCertaintyLevel TEXT NOT NULL DEFAULT 'Unknown',
+            ShortDescription TEXT NOT NULL DEFAULT '',
+            LongDescription TEXT NOT NULL DEFAULT '',
+            CertaintyLevel TEXT NOT NULL,
+            CreatedAtUtc TEXT NOT NULL,
+            UpdatedAtUtc TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS EventPersons (
+            EventId TEXT NOT NULL,
+            PersonId TEXT NOT NULL,
+            PRIMARY KEY (EventId, PersonId),
+            FOREIGN KEY (EventId) REFERENCES Events(Id),
+            FOREIGN KEY (PersonId) REFERENCES Persons(Id)
+        );
+
+        CREATE TABLE IF NOT EXISTS BibleReferences (
+            Id TEXT PRIMARY KEY,
+            Translation TEXT NOT NULL DEFAULT '',
+            Book TEXT NOT NULL,
+            ChapterStart INTEGER NOT NULL,
+            VerseStart INTEGER NULL,
+            ChapterEnd INTEGER NULL,
+            VerseEnd INTEGER NULL,
+            ReferenceText TEXT NOT NULL DEFAULT '',
+            UserSummary TEXT NOT NULL DEFAULT '',
+            UserComment TEXT NOT NULL DEFAULT '',
+            CreatedAtUtc TEXT NOT NULL,
+            UpdatedAtUtc TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS EventBibleReferences (
+            EventId TEXT NOT NULL,
+            BibleReferenceId TEXT NOT NULL,
+            PRIMARY KEY (EventId, BibleReferenceId),
+            FOREIGN KEY (EventId) REFERENCES Events(Id),
+            FOREIGN KEY (BibleReferenceId) REFERENCES BibleReferences(Id)
+        );
+
+        CREATE INDEX IF NOT EXISTS IX_EventPersons_PersonId ON EventPersons(PersonId);
+        CREATE INDEX IF NOT EXISTS IX_EventBibleReferences_BibleReferenceId ON EventBibleReferences(BibleReferenceId);
+        CREATE INDEX IF NOT EXISTS IX_Events_UpdatedAtUtc ON Events(UpdatedAtUtc);
+        CREATE INDEX IF NOT EXISTS IX_BibleReferences_Book ON BibleReferences(Book);
         """;
 
 }

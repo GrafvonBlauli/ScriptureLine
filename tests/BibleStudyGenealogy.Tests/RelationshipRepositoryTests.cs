@@ -1,6 +1,7 @@
 using BibleStudyGenealogy.Core.Models;
 using BibleStudyGenealogy.Infrastructure.Repositories;
 using BibleStudyGenealogy.Infrastructure.Services;
+using Microsoft.Data.Sqlite;
 
 namespace BibleStudyGenealogy.Tests;
 
@@ -127,6 +128,22 @@ public sealed class RelationshipRepositoryTests
             }));
 
         Assert.Equal("Diese Beziehung ist bereits vorhanden.", exception.Message);
+    }
+
+    [Fact]
+    public async Task SaveAsync_RejectsMissingPeople()
+    {
+        await using var project = await TestProject.CreateAsync();
+        var relationshipRepository = new RelationshipRepository(project.Workspace.DatabasePath);
+
+        await Assert.ThrowsAsync<SqliteException>(() =>
+            relationshipRepository.SaveAsync(new Relationship
+            {
+                PersonAId = Guid.NewGuid(),
+                PersonBId = Guid.NewGuid(),
+                RelationshipType = RelationshipType.Spouse,
+                Direction = RelationshipDirection.Undirected
+            }));
     }
 
     [Fact]

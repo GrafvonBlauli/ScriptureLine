@@ -15,8 +15,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
 
     public async Task<IReadOnlyList<Relationship>> GetForPersonAsync(Guid personId, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -51,8 +50,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
 
     public async Task<Relationship?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -92,8 +90,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
             throw new InvalidOperationException("Eine Person kann nicht mit sich selbst verknüpft werden.");
         }
 
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         if (await HasDuplicateAsync(connection, relationship, cancellationToken))
         {
@@ -165,8 +162,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
 
     public async Task ArchiveAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -184,8 +180,7 @@ public sealed class RelationshipRepository : IRelationshipRepository
 
     public async Task<int> CountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqliteConnection(CreateConnectionString());
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await SqliteConnectionFactory.OpenAsync(_databasePath, cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Relationships WHERE Status = $status;";
@@ -216,17 +211,6 @@ public sealed class RelationshipRepository : IRelationshipRepository
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt32(result) > 0;
-    }
-
-    private string CreateConnectionString()
-    {
-        var builder = new SqliteConnectionStringBuilder
-        {
-            DataSource = _databasePath,
-            Pooling = false
-        };
-
-        return builder.ToString();
     }
 
     private static Relationship ReadRelationship(SqliteDataReader reader)

@@ -43,6 +43,47 @@ public static class DisplayText
         };
     }
 
+    public static string For(EventType eventType)
+    {
+        return eventType switch
+        {
+            EventType.Birth => "Geburt",
+            EventType.Death => "Tod",
+            EventType.Marriage => "Eheschließung",
+            EventType.Calling => "Berufung",
+            EventType.Journey => "Reise",
+            EventType.Battle => "Konflikt",
+            EventType.Reign => "Herrschaft",
+            EventType.Prophecy => "Prophetie",
+            EventType.Teaching => "Lehre",
+            EventType.Miracle => "Wunder",
+            _ => "sonstiges Ereignis"
+        };
+    }
+
+    public static string For(PersonStatus status)
+    {
+        return status switch
+        {
+            PersonStatus.Uncertain => "unsicher",
+            PersonStatus.Archived => "archiviert",
+            PersonStatus.Rejected => "verworfen",
+            PersonStatus.DuplicateCandidate => "mögliches Duplikat",
+            _ => "aktiv"
+        };
+    }
+
+    public static string For(Gender gender)
+    {
+        return gender switch
+        {
+            Gender.Male => "männlich",
+            Gender.Female => "weiblich",
+            Gender.Other => "andere Angabe",
+            _ => "unbekannt"
+        };
+    }
+
     public static string For(RelationshipStatus status)
     {
         return status switch

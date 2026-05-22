@@ -125,7 +125,8 @@
                             <TextBlock Text="Projektübersicht" Foreground="{StaticResource InkGreenBrush}" FontSize="18" FontWeight="SemiBold" />
                             <TextBlock Text="Personen" Foreground="{StaticResource MutedTextBrush}" />
                             <TextBlock x:Name="PersonCountText" Text="0" Classes="display" FontSize="34" />
-                            <TextBlock Text="Orte, Ereignisse und Bibelstellen folgen in den nächsten Modulen." Classes="body" FontSize="12" TextWrapping="Wrap" />
+                            <TextBlock x:Name="EventCountText" Text="0 Ereignisse" Classes="body" FontSize="12" TextWrapping="Wrap" />
+                            <TextBlock x:Name="BibleReferenceCountText" Text="0 Bibelstellen" Classes="body" FontSize="12" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Classes="card">
@@ -292,8 +293,10 @@
                                 <Button Classes="secondary"
                                         Content="Ort anlegen"
                                         IsEnabled="False" />
-                                <Button Classes="secondary"
-                                        Content="Notiz hinzufügen"
+                                <Button x:Name="QuickAddEventButton"
+                                        Classes="secondary"
+                                        Content="Ereignis erfassen"
+                                        Click="CreateEventButton_Click"
                                         IsEnabled="False" />
                             </StackPanel>
                         </StackPanel>
@@ -468,26 +471,164 @@
                                    FontSize="30" />
                         <TextBlock Text="Einfache Vorschau der ausgewählten Person"
                                    Classes="body" />
-                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                              RowSpacing="10">
-                            <Border Grid.Row="0" Background="{StaticResource ParchmentTintBrush}" CornerRadius="8" Padding="14">
+                        <Grid ColumnDefinitions="*,1.1*,*"
+                              RowDefinitions="Auto,Auto,Auto"
+                              ColumnSpacing="12"
+                              RowSpacing="12">
+                            <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource ParchmentTintBrush}" BorderBrush="{StaticResource SoftLineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <TextBlock x:Name="TreeParentsText" Text="Eltern: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
                             </Border>
-                            <Border Grid.Row="1" Background="#F4DFAF" CornerRadius="8" Padding="14">
+                            <Border Grid.Row="1" Grid.Column="1" Background="#F4DFAF" BorderBrush="{StaticResource OchreBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                                 <TextBlock x:Name="TreeFocusText" Text="Fokusperson: keine ausgewählt" Foreground="{StaticResource InkGreenBrush}" FontWeight="SemiBold" TextWrapping="Wrap" />
                             </Border>
-                            <Border Grid.Row="2" Background="{StaticResource ParchmentTintBrush}" CornerRadius="8" Padding="14">
+                            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource ParchmentTintBrush}" BorderBrush="{StaticResource SoftLineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <TextBlock x:Name="TreePartnersText" Text="Partner: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
                             </Border>
-                            <Border Grid.Row="3" Background="{StaticResource ParchmentTintBrush}" CornerRadius="8" Padding="14">
+                            <Border Grid.Row="2" Grid.Column="1" Background="{StaticResource ParchmentTintBrush}" BorderBrush="{StaticResource SoftLineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <TextBlock x:Name="TreeChildrenText" Text="Kinder: keine" Foreground="{StaticResource InkGreenBrush}" TextWrapping="Wrap" />
                             </Border>
-                            <Border Grid.Row="4" Background="#E8D2A4" CornerRadius="8" Padding="14">
-                                <TextBlock x:Name="TreeOtherText" Text="Weitere oder unsichere Beziehungen: keine" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+                            <Border Grid.Row="1" Grid.Column="2" Grid.RowSpan="2" Background="#E8D2A4" BorderBrush="#C6A873" BorderThickness="1" CornerRadius="8" Padding="14">
+                                <TextBlock x:Name="TreeOtherText" Text="Unsicher / weitere: keine" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
                             </Border>
                         </Grid>
                     </StackPanel>
                 </Border>
+
+                <Grid ColumnDefinitions="1.05*,0.95*"
+                      ColumnSpacing="18">
+                    <Border Classes="card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Ereignisse"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBlock Text="Ereignisse der ausgewählten Person"
+                                       Classes="body" />
+                            <ListBox x:Name="EventsListBox"
+                                     MinHeight="180"
+                                     SelectionChanged="EventsListBox_SelectionChanged" />
+                            <TextBlock x:Name="EventsEmptyText"
+                                       Text="Wähle eine Person aus, um Ereignisse zu sehen."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Ereignis erfassen"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBox x:Name="EventTitleTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Titel" />
+                            <ComboBox x:Name="EventTypeComboBox"
+                                      Classes="project-name" />
+                            <ComboBox x:Name="EventCertaintyComboBox"
+                                      Classes="project-name" />
+                            <TextBox x:Name="EventDateTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Datierung als Text" />
+                            <TextBox x:Name="EventShortDescriptionTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Kurzbeschreibung" />
+                            <TextBox x:Name="EventLongDescriptionTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Notizen"
+                                     MinHeight="78"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap" />
+                            <Button x:Name="SaveEventButton"
+                                    Classes="primary"
+                                    Content="Ereignis speichern"
+                                    Click="SaveEventButton_Click"
+                                    IsEnabled="False" />
+                            <TextBlock x:Name="EventFormStatusText"
+                                       Text="Wähle zuerst eine Person aus."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="1.05*,0.95*"
+                      ColumnSpacing="18">
+                    <Border Classes="card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Bibelstellen"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <TextBlock Text="Eigene Referenzen und Kommentare"
+                                       Classes="body" />
+                            <ListBox x:Name="BibleReferencesListBox"
+                                     MinHeight="180"
+                                     SelectionChanged="BibleReferencesListBox_SelectionChanged" />
+                            <TextBlock x:Name="BibleReferencesEmptyText"
+                                       Text="Noch keine Bibelstellen erfasst."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Bibelstelle erfassen"
+                                       Classes="display"
+                                       FontSize="28" />
+                            <Grid ColumnDefinitions="*,*"
+                                  RowDefinitions="Auto,Auto,Auto"
+                                  ColumnSpacing="10"
+                                  RowSpacing="10">
+                                <TextBox x:Name="BibleTranslationTextBox"
+                                         Grid.Row="0"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Übersetzung" />
+                                <TextBox x:Name="BibleBookTextBox"
+                                         Grid.Row="0"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Buch" />
+                                <TextBox x:Name="BibleChapterStartTextBox"
+                                         Grid.Row="1"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Kapitel von" />
+                                <TextBox x:Name="BibleVerseStartTextBox"
+                                         Grid.Row="1"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Vers von" />
+                                <TextBox x:Name="BibleChapterEndTextBox"
+                                         Grid.Row="2"
+                                         Grid.Column="0"
+                                         Classes="project-name"
+                                         PlaceholderText="Kapitel bis" />
+                                <TextBox x:Name="BibleVerseEndTextBox"
+                                         Grid.Row="2"
+                                         Grid.Column="1"
+                                         Classes="project-name"
+                                         PlaceholderText="Vers bis" />
+                            </Grid>
+                            <TextBox x:Name="BibleReferenceTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Referenztext oder eigene Abschrift" />
+                            <TextBox x:Name="BibleSummaryTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Eigene Zusammenfassung" />
+                            <TextBox x:Name="BibleCommentTextBox"
+                                     Classes="project-name"
+                                     PlaceholderText="Eigener Kommentar"
+                                     MinHeight="78"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap" />
+                            <Button x:Name="SaveBibleReferenceButton"
+                                    Classes="primary"
+                                    Content="Bibelstelle speichern"
+                                    Click="SaveBibleReferenceButton_Click"
+                                    IsEnabled="False" />
+                            <TextBlock x:Name="BibleReferenceFormStatusText"
+                                       Text="Öffne oder erstelle zuerst ein Projekt."
+                                       Classes="body" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
     </Grid>

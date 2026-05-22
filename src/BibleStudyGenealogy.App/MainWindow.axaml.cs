@@ -6,6 +6,7 @@ using BibleStudyGenealogy.Infrastructure.Repositories;
 using BibleStudyGenealogy.Infrastructure.Services;
 using BibleStudyGenealogy.Rendering.TreeLayout;
 using System.Text.Json;
+using ScriptureEvent = BibleStudyGenealogy.Core.Models.Event;
 
 namespace BibleStudyGenealogy.App;
 
@@ -15,18 +16,25 @@ public partial class MainWindow : Window
     private readonly AppStateStore _appStateStore = new();
     private IPersonRepository? _personRepository;
     private IRelationshipRepository? _relationshipRepository;
+    private IEventRepository? _eventRepository;
+    private IBibleReferenceRepository? _bibleReferenceRepository;
     private readonly FamilyTreeBuilder _familyTreeBuilder = new();
     private ProjectWorkspace? _currentWorkspace;
     private Person? _currentPerson;
+    private bool _isCurrentPersonPersisted;
     private Relationship? _currentRelationship;
+    private ScriptureEvent? _currentEvent;
+    private BibleReference? _currentBibleReference;
     private IReadOnlyList<Person> _people = Array.Empty<Person>();
     private IReadOnlyList<Relationship> _currentRelationships = Array.Empty<Relationship>();
+    private IReadOnlyList<ScriptureEvent> _currentEvents = Array.Empty<ScriptureEvent>();
 
     public MainWindow()
     {
         InitializeComponent();
         InitializePersonForm();
         InitializeRelationshipForm();
+        InitializeEventForm();
         RestoreLastProject();
     }
 
@@ -79,8 +87,12 @@ public partial class MainWindow : Window
     private void CreatePersonButton_Click(object? sender, RoutedEventArgs e)
     {
         _currentPerson = new Person();
+        _isCurrentPersonPersisted = false;
+        _currentRelationship = null;
         ClearPersonForm();
         PersonFormStatusText.Text = "Neue Person vorbereiten.";
+        RelationshipFormStatusText.Text = "Speichere die Person, bevor du Beziehungen anlegst.";
+        EventFormStatusText.Text = "Speichere die Person, bevor du ein Ereignis mit ihr verknüpfst.";
         MainNameTextBox.Focus();
     }
 
@@ -104,6 +116,7 @@ public partial class MainWindow : Window
         try
         {
             await _personRepository.SaveAsync(_currentPerson);
+            _isCurrentPersonPersisted = true;
             PersonFormStatusText.Text = "Person wurde gespeichert.";
             await RefreshPeopleAsync();
             await RefreshStatisticsAsync();
@@ -127,6 +140,7 @@ public partial class MainWindow : Window
         }
 
         _currentPerson = await _personRepository.GetByIdAsync(selectedPerson.Id);
+        _isCurrentPersonPersisted = _currentPerson is not null;
         if (_currentPerson is null)
         {
             PersonFormStatusText.Text = "Person wurde nicht gefunden.";
@@ -136,13 +150,14 @@ public partial class MainWindow : Window
         FillFormFromPerson(_currentPerson);
         PersonFormStatusText.Text = "Person geladen.";
         await RefreshRelationshipsAsync();
+        await RefreshEventsAsync();
     }
 
     private async void SaveRelationshipButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (_relationshipRepository is null || _currentPerson is null)
+        if (_relationshipRepository is null || _currentPerson is null || !_isCurrentPersonPersisted)
         {
-            RelationshipFormStatusText.Text = "Wähle zuerst eine Person aus.";
+            RelationshipFormStatusText.Text = "Wähle zuerst eine gespeicherte Person aus.";
             return;
         }
 
@@ -212,6 +227,125 @@ public partial class MainWindow : Window
         await RefreshStatisticsAsync();
     }
 
+    private void CreateEventButton_Click(object? sender, RoutedEventArgs e)
+    {
+        _currentEvent = new ScriptureEvent();
+        ClearEventForm();
+        EventFormStatusText.Text = _currentPerson is null
+            ? "Wähle eine Person aus, um ein Ereignis direkt zu verknüpfen."
+            : $"Neues Ereignis für {_currentPerson.MainName} vorbereiten.";
+        EventTitleTextBox.Focus();
+    }
+
+    private async void SaveEventButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_eventRepository is null || _currentWorkspace is null)
+        {
+            EventFormStatusText.Text = "Öffne oder erstelle zuerst ein Projekt.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(EventTitleTextBox.Text))
+        {
+            EventFormStatusText.Text = "Bitte gib einen Ereignistitel ein.";
+            return;
+        }
+
+        _currentEvent ??= new ScriptureEvent();
+        FillEventFromForm(_currentEvent);
+
+        if (_currentPerson is not null && !_isCurrentPersonPersisted)
+        {
+            EventFormStatusText.Text = "Speichere die Person zuerst, bevor du ein Ereignis mit ihr verknüpfst.";
+            return;
+        }
+
+        try
+        {
+            await _eventRepository.SaveAsync(_currentEvent);
+            if (_currentPerson is not null)
+            {
+                await _eventRepository.LinkPersonAsync(_currentEvent.Id, _currentPerson.Id);
+            }
+
+            EventFormStatusText.Text = _currentPerson is null
+                ? "Ereignis wurde gespeichert."
+                : "Ereignis wurde gespeichert und mit der ausgewählten Person verbunden.";
+            await RefreshEventsAsync();
+            await RefreshStatisticsAsync();
+        }
+        catch (Exception exception)
+        {
+            EventFormStatusText.Text = $"Ereignis konnte nicht gespeichert werden: {exception.Message}";
+        }
+    }
+
+    private async void EventsListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (EventsListBox.SelectedItem is not EventListItem selectedEvent || _eventRepository is null)
+        {
+            return;
+        }
+
+        _currentEvent = await _eventRepository.GetByIdAsync(selectedEvent.Id);
+        if (_currentEvent is null)
+        {
+            EventFormStatusText.Text = "Ereignis wurde nicht gefunden.";
+            return;
+        }
+
+        FillEventForm(_currentEvent);
+        EventFormStatusText.Text = "Ereignis geladen und kann bearbeitet werden.";
+    }
+
+    private async void SaveBibleReferenceButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_bibleReferenceRepository is null || _currentWorkspace is null)
+        {
+            BibleReferenceFormStatusText.Text = "Öffne oder erstelle zuerst ein Projekt.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(BibleBookTextBox.Text) || !TryReadInt(BibleChapterStartTextBox.Text, out var chapterStart))
+        {
+            BibleReferenceFormStatusText.Text = "Bitte gib mindestens Buch und Startkapitel ein.";
+            return;
+        }
+
+        _currentBibleReference ??= new BibleReference();
+        FillBibleReferenceFromForm(_currentBibleReference, chapterStart);
+
+        try
+        {
+            await _bibleReferenceRepository.SaveAsync(_currentBibleReference);
+            BibleReferenceFormStatusText.Text = "Bibelstelle wurde gespeichert.";
+            await RefreshBibleReferencesAsync();
+            await RefreshStatisticsAsync();
+        }
+        catch (Exception exception)
+        {
+            BibleReferenceFormStatusText.Text = $"Bibelstelle konnte nicht gespeichert werden: {exception.Message}";
+        }
+    }
+
+    private async void BibleReferencesListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (BibleReferencesListBox.SelectedItem is not BibleReferenceListItem selectedReference || _bibleReferenceRepository is null)
+        {
+            return;
+        }
+
+        _currentBibleReference = await _bibleReferenceRepository.GetByIdAsync(selectedReference.Id);
+        if (_currentBibleReference is null)
+        {
+            BibleReferenceFormStatusText.Text = "Bibelstelle wurde nicht gefunden.";
+            return;
+        }
+
+        FillBibleReferenceForm(_currentBibleReference);
+        BibleReferenceFormStatusText.Text = "Bibelstelle geladen und kann bearbeitet werden.";
+    }
+
     private async Task<string?> PickFolderAsync(string title)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -230,6 +364,13 @@ public partial class MainWindow : Window
         _currentWorkspace = workspace;
         _personRepository = new PersonRepository(workspace.DatabasePath);
         _relationshipRepository = new RelationshipRepository(workspace.DatabasePath);
+        _eventRepository = new EventRepository(workspace.DatabasePath);
+        _bibleReferenceRepository = new BibleReferenceRepository(workspace.DatabasePath);
+        _currentPerson = null;
+        _isCurrentPersonPersisted = false;
+        _currentRelationship = null;
+        _currentEvent = null;
+        _currentBibleReference = null;
         var statistics = await _projectService.ReadStatisticsAsync(workspace);
 
         SidebarProjectTitle.Text = workspace.Settings.ProjectName;
@@ -241,16 +382,25 @@ public partial class MainWindow : Window
 
         PersonCountText.Text = statistics.PersonCount.ToString();
         RelationshipCountText.Text = statistics.RelationshipCount.ToString();
+        EventCountText.Text = $"{statistics.EventCount} Ereignisse";
+        BibleReferenceCountText.Text = $"{statistics.BibleReferenceCount} Bibelstellen";
         PlaceCountText.Text = statistics.PlaceCount.ToString();
         ResearchQuestionCountText.Text = $"{statistics.ResearchQuestionCount} offene Fragen";
         CreatePersonButton.IsEnabled = true;
         QuickAddPersonButton.IsEnabled = true;
+        QuickAddEventButton.IsEnabled = true;
         SavePersonButton.IsEnabled = true;
         SaveRelationshipButton.IsEnabled = true;
+        SaveEventButton.IsEnabled = true;
+        SaveBibleReferenceButton.IsEnabled = true;
         PersonFormStatusText.Text = "Bereit für die erste Person.";
+        EventFormStatusText.Text = "Bereit für Ereignisse.";
+        BibleReferenceFormStatusText.Text = "Bereit für Bibelstellen.";
 
         await RefreshPeopleAsync();
         await RefreshRelationshipsAsync();
+        await RefreshEventsAsync();
+        await RefreshBibleReferencesAsync();
         await _appStateStore.SaveAsync(new AppState(workspace.RootDirectory));
     }
 
@@ -268,62 +418,28 @@ public partial class MainWindow : Window
 
     private void InitializePersonForm()
     {
-        GenderComboBox.ItemsSource = new[]
-        {
-            new EnumDisplay<Gender>(Gender.Unknown, "unbekannt"),
-            new EnumDisplay<Gender>(Gender.Male, "männlich"),
-            new EnumDisplay<Gender>(Gender.Female, "weiblich"),
-            new EnumDisplay<Gender>(Gender.Other, "andere Angabe")
-        };
-
-        PersonStatusComboBox.ItemsSource = new[]
-        {
-            new EnumDisplay<PersonStatus>(PersonStatus.Active, "aktiv"),
-            new EnumDisplay<PersonStatus>(PersonStatus.Uncertain, "unsicher"),
-            new EnumDisplay<PersonStatus>(PersonStatus.Archived, "archiviert"),
-            new EnumDisplay<PersonStatus>(PersonStatus.Rejected, "verworfen"),
-            new EnumDisplay<PersonStatus>(PersonStatus.DuplicateCandidate, "mögliches Duplikat")
-        };
-
+        GenderComboBox.ItemsSource = DisplayOptions.Genders();
+        PersonStatusComboBox.ItemsSource = DisplayOptions.PersonStatuses();
         GenderComboBox.SelectedIndex = 0;
         PersonStatusComboBox.SelectedIndex = 0;
     }
 
     private void InitializeRelationshipForm()
     {
-        RelationshipTypeComboBox.ItemsSource = new[]
-        {
-            new EnumDisplay<RelationshipType>(RelationshipType.ParentChild, DisplayText.For(RelationshipType.ParentChild)),
-            new EnumDisplay<RelationshipType>(RelationshipType.Spouse, DisplayText.For(RelationshipType.Spouse)),
-            new EnumDisplay<RelationshipType>(RelationshipType.Sibling, DisplayText.For(RelationshipType.Sibling)),
-            new EnumDisplay<RelationshipType>(RelationshipType.AdoptiveParent, DisplayText.For(RelationshipType.AdoptiveParent)),
-            new EnumDisplay<RelationshipType>(RelationshipType.LegalParent, DisplayText.For(RelationshipType.LegalParent)),
-            new EnumDisplay<RelationshipType>(RelationshipType.TribeMember, DisplayText.For(RelationshipType.TribeMember)),
-            new EnumDisplay<RelationshipType>(RelationshipType.UnknownRelated, DisplayText.For(RelationshipType.UnknownRelated)),
-            new EnumDisplay<RelationshipType>(RelationshipType.Custom, DisplayText.For(RelationshipType.Custom))
-        };
-
-        RelationshipDirectionComboBox.ItemsSource = new[]
-        {
-            new EnumDisplay<RelationshipDirection>(RelationshipDirection.Undirected, DisplayText.For(RelationshipDirection.Undirected)),
-            new EnumDisplay<RelationshipDirection>(RelationshipDirection.PersonAToPersonB, DisplayText.For(RelationshipDirection.PersonAToPersonB)),
-            new EnumDisplay<RelationshipDirection>(RelationshipDirection.PersonBToPersonA, DisplayText.For(RelationshipDirection.PersonBToPersonA))
-        };
-
-        RelationshipCertaintyComboBox.ItemsSource = new[]
-        {
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.ExplicitlyMentioned, DisplayText.For(CertaintyLevel.ExplicitlyMentioned)),
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Likely, DisplayText.For(CertaintyLevel.Likely)),
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Possible, DisplayText.For(CertaintyLevel.Possible)),
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Traditional, DisplayText.For(CertaintyLevel.Traditional)),
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Disputed, DisplayText.For(CertaintyLevel.Disputed)),
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.UserHypothesis, DisplayText.For(CertaintyLevel.UserHypothesis)),
-            new EnumDisplay<CertaintyLevel>(CertaintyLevel.Unknown, DisplayText.For(CertaintyLevel.Unknown))
-        };
-
+        RelationshipTypeComboBox.ItemsSource = DisplayOptions.RelationshipTypes();
+        RelationshipDirectionComboBox.ItemsSource = DisplayOptions.RelationshipDirections();
+        RelationshipCertaintyComboBox.ItemsSource = DisplayOptions.CertaintyLevels();
         RelationshipTypeComboBox.SelectedIndex = 0;
         RelationshipDirectionComboBox.SelectedIndex = 0;
         RelationshipCertaintyComboBox.SelectedIndex = 6;
+    }
+
+    private void InitializeEventForm()
+    {
+        EventTypeComboBox.ItemsSource = DisplayOptions.EventTypes();
+        EventCertaintyComboBox.ItemsSource = DisplayOptions.CertaintyLevels();
+        EventTypeComboBox.SelectedIndex = 10;
+        EventCertaintyComboBox.SelectedIndex = 6;
     }
 
     private async Task RefreshPeopleAsync()
@@ -379,6 +495,56 @@ public partial class MainWindow : Window
         RefreshTreePreview();
     }
 
+    private async Task RefreshEventsAsync()
+    {
+        if (_eventRepository is null)
+        {
+            EventsListBox.ItemsSource = Array.Empty<EventListItem>();
+            EventsEmptyText.Text = "Noch kein Projekt geöffnet.";
+            return;
+        }
+
+        _currentEvents = _currentPerson is null
+            ? await _eventRepository.SearchAsync(string.Empty)
+            : await _eventRepository.GetForPersonAsync(_currentPerson.Id);
+        var eventItems = _currentEvents
+            .Select(scriptureEvent => new EventListItem(
+                scriptureEvent.Id,
+                $"{DisplayText.For(scriptureEvent.EventType)}: {scriptureEvent.Title}",
+                scriptureEvent.ShortDescription))
+            .ToList();
+
+        EventsListBox.ItemsSource = eventItems;
+        EventsEmptyText.Text = eventItems.Count == 0
+            ? _currentPerson is null
+                ? "Noch keine Ereignisse erfasst."
+                : "Für diese Person sind noch keine Ereignisse erfasst."
+            : $"{eventItems.Count} Ereignis(se) erfasst.";
+    }
+
+    private async Task RefreshBibleReferencesAsync()
+    {
+        if (_bibleReferenceRepository is null)
+        {
+            BibleReferencesListBox.ItemsSource = Array.Empty<BibleReferenceListItem>();
+            BibleReferencesEmptyText.Text = "Noch kein Projekt geöffnet.";
+            return;
+        }
+
+        var references = await _bibleReferenceRepository.SearchAsync(string.Empty);
+        var referenceItems = references
+            .Select(reference => new BibleReferenceListItem(
+                reference.Id,
+                FormatBibleReferenceTitle(reference),
+                reference.UserSummary))
+            .ToList();
+
+        BibleReferencesListBox.ItemsSource = referenceItems;
+        BibleReferencesEmptyText.Text = referenceItems.Count == 0
+            ? "Noch keine Bibelstellen erfasst."
+            : $"{referenceItems.Count} Bibelstelle(n) erfasst.";
+    }
+
     private async Task RefreshStatisticsAsync()
     {
         if (_currentWorkspace is null)
@@ -389,6 +555,8 @@ public partial class MainWindow : Window
         var statistics = await _projectService.ReadStatisticsAsync(_currentWorkspace);
         PersonCountText.Text = statistics.PersonCount.ToString();
         RelationshipCountText.Text = $"{statistics.RelationshipCount} Beziehungen vorbereitet";
+        EventCountText.Text = $"{statistics.EventCount} Ereignisse";
+        BibleReferenceCountText.Text = $"{statistics.BibleReferenceCount} Bibelstellen";
         LastEditedText.Text = _currentPerson is null
             ? "Noch keine Person bearbeitet"
             : $"{_currentPerson.MainName} wurde zuletzt gespeichert.";
@@ -431,6 +599,70 @@ public partial class MainWindow : Window
         RelationshipCertaintyComboBox.SelectedIndex = 6;
         RelationshipSourceNoteTextBox.Text = string.Empty;
         RelationshipCommentTextBox.Text = string.Empty;
+    }
+
+    private void FillEventFromForm(ScriptureEvent scriptureEvent)
+    {
+        scriptureEvent.Title = EventTitleTextBox.Text?.Trim() ?? string.Empty;
+        scriptureEvent.EventType = (EventTypeComboBox.SelectedItem as EnumDisplay<EventType>)?.Value ?? EventType.Other;
+        scriptureEvent.CertaintyLevel = (EventCertaintyComboBox.SelectedItem as EnumDisplay<CertaintyLevel>)?.Value ?? CertaintyLevel.Unknown;
+        scriptureEvent.ShortDescription = EventShortDescriptionTextBox.Text?.Trim() ?? string.Empty;
+        scriptureEvent.LongDescription = EventLongDescriptionTextBox.Text?.Trim() ?? string.Empty;
+        var dateText = EventDateTextBox.Text?.Trim() ?? string.Empty;
+        scriptureEvent.DateInfo = string.IsNullOrWhiteSpace(dateText)
+            ? null
+            : new DateInfo
+            {
+                ApproximationText = dateText,
+                DateType = DateType.Unknown,
+                CertaintyLevel = scriptureEvent.CertaintyLevel
+            };
+    }
+
+    private void FillEventForm(ScriptureEvent scriptureEvent)
+    {
+        EventTitleTextBox.Text = scriptureEvent.Title;
+        SelectEnumValue(EventTypeComboBox, scriptureEvent.EventType);
+        SelectEnumValue(EventCertaintyComboBox, scriptureEvent.CertaintyLevel);
+        EventDateTextBox.Text = scriptureEvent.DateInfo?.ApproximationText ?? string.Empty;
+        EventShortDescriptionTextBox.Text = scriptureEvent.ShortDescription;
+        EventLongDescriptionTextBox.Text = scriptureEvent.LongDescription;
+    }
+
+    private void ClearEventForm()
+    {
+        EventTitleTextBox.Text = string.Empty;
+        EventTypeComboBox.SelectedIndex = 10;
+        EventCertaintyComboBox.SelectedIndex = 6;
+        EventDateTextBox.Text = string.Empty;
+        EventShortDescriptionTextBox.Text = string.Empty;
+        EventLongDescriptionTextBox.Text = string.Empty;
+    }
+
+    private void FillBibleReferenceFromForm(BibleReference bibleReference, int chapterStart)
+    {
+        bibleReference.Translation = BibleTranslationTextBox.Text?.Trim() ?? string.Empty;
+        bibleReference.Book = BibleBookTextBox.Text?.Trim() ?? string.Empty;
+        bibleReference.ChapterStart = chapterStart;
+        bibleReference.VerseStart = ReadOptionalInt(BibleVerseStartTextBox.Text);
+        bibleReference.ChapterEnd = ReadOptionalInt(BibleChapterEndTextBox.Text);
+        bibleReference.VerseEnd = ReadOptionalInt(BibleVerseEndTextBox.Text);
+        bibleReference.ReferenceText = BibleReferenceTextBox.Text?.Trim() ?? string.Empty;
+        bibleReference.UserSummary = BibleSummaryTextBox.Text?.Trim() ?? string.Empty;
+        bibleReference.UserComment = BibleCommentTextBox.Text?.Trim() ?? string.Empty;
+    }
+
+    private void FillBibleReferenceForm(BibleReference bibleReference)
+    {
+        BibleTranslationTextBox.Text = bibleReference.Translation;
+        BibleBookTextBox.Text = bibleReference.Book;
+        BibleChapterStartTextBox.Text = bibleReference.ChapterStart.ToString();
+        BibleVerseStartTextBox.Text = bibleReference.VerseStart?.ToString() ?? string.Empty;
+        BibleChapterEndTextBox.Text = bibleReference.ChapterEnd?.ToString() ?? string.Empty;
+        BibleVerseEndTextBox.Text = bibleReference.VerseEnd?.ToString() ?? string.Empty;
+        BibleReferenceTextBox.Text = bibleReference.ReferenceText;
+        BibleSummaryTextBox.Text = bibleReference.UserSummary;
+        BibleCommentTextBox.Text = bibleReference.UserComment;
     }
 
     private void FillPersonFromForm(Person person)
@@ -501,6 +733,31 @@ public partial class MainWindow : Window
         return _people.FirstOrDefault(person => person.Id == personId)?.MainName ?? "Unbekannte Person";
     }
 
+    private static string FormatBibleReferenceTitle(BibleReference reference)
+    {
+        var versePart = reference.VerseStart is null
+            ? string.Empty
+            : $",{reference.VerseStart}";
+        var endPart = reference.ChapterEnd is null && reference.VerseEnd is null
+            ? string.Empty
+            : $"-{reference.ChapterEnd?.ToString() ?? reference.ChapterStart.ToString()}{(reference.VerseEnd is null ? string.Empty : $",{reference.VerseEnd}")}";
+        var translation = string.IsNullOrWhiteSpace(reference.Translation)
+            ? string.Empty
+            : $" ({reference.Translation})";
+
+        return $"{reference.Book} {reference.ChapterStart}{versePart}{endPart}{translation}";
+    }
+
+    private static bool TryReadInt(string? value, out int result)
+    {
+        return int.TryParse(value?.Trim(), out result) && result > 0;
+    }
+
+    private static int? ReadOptionalInt(string? value)
+    {
+        return TryReadInt(value, out var result) ? result : null;
+    }
+
     private static string FormatTreeGroup(IReadOnlyCollection<string> names)
     {
         return names.Count == 0 ? "keine" : string.Join(", ", names);
@@ -567,15 +824,6 @@ public partial class MainWindow : Window
 
     private sealed record AppState(string LastProjectDirectory);
 
-    private sealed record EnumDisplay<T>(T Value, string DisplayName)
-        where T : struct, Enum
-    {
-        public override string ToString()
-        {
-            return DisplayName;
-        }
-    }
-
     private sealed record PersonListItem(Guid Id, string MainName, string PrimaryRole)
     {
         public override string ToString()
@@ -593,6 +841,26 @@ public partial class MainWindow : Window
             return string.IsNullOrWhiteSpace(Comment)
                 ? Title
                 : $"{Title} - {Comment}";
+        }
+    }
+
+    private sealed record EventListItem(Guid Id, string Title, string Description)
+    {
+        public override string ToString()
+        {
+            return string.IsNullOrWhiteSpace(Description)
+                ? Title
+                : $"{Title} - {Description}";
+        }
+    }
+
+    private sealed record BibleReferenceListItem(Guid Id, string Title, string Summary)
+    {
+        public override string ToString()
+        {
+            return string.IsNullOrWhiteSpace(Summary)
+                ? Title
+                : $"{Title} - {Summary}";
         }
     }
 
