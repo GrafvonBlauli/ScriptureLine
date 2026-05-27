@@ -12,7 +12,6 @@ using BibleStudyGenealogy.Infrastructure.Services;
 using BibleStudyGenealogy.Rendering.Timeline;
 using BibleStudyGenealogy.Rendering.TreeLayout;
 using System.Text.Json;
-using Line = Avalonia.Controls.Shapes.Line;
 using PathShape = Avalonia.Controls.Shapes.Path;
 using ScriptureEvent = BibleStudyGenealogy.Core.Models.Event;
 
@@ -20,10 +19,10 @@ namespace BibleStudyGenealogy.App;
 
 public partial class MainWindow : Window
 {
-    private const double TreeCardWidth = 260;
-    private const double TreeCardHeight = 126;
+    private const double TreeCardWidth = 320;
+    private const double TreeCardHeight = 150;
     private const double TreeCardCenterX = TreeCardWidth / 2;
-    private const double TreeCardAvatarSize = 58;
+    private const double TreeCardAvatarSize = 66;
 
     private readonly IProjectService _projectService = new LocalProjectService();
     private readonly AppStateStore _appStateStore = new();
@@ -1420,26 +1419,20 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            var line = new Line
-            {
-                StartPoint = ScalePoint(fromNode.X + TreeCardCenterX, fromNode.Y + TreeCardHeight / 2),
-                EndPoint = ScalePoint(toNode.X + TreeCardCenterX, toNode.Y + TreeCardHeight / 2),
-                Stroke = link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
-                StrokeThickness = link.IsUncertain ? 1.5 : 2.2
-            };
-            if (link.IsUncertain)
-            {
-                line.StrokeDashArray = new AvaloniaList<double> { 4, 4 };
-            }
-
-            FamilyTreeCanvas.Children.Add(line);
+            var start = GetTreeEdgePoint(fromNode, toNode);
+            var end = GetTreeEdgePoint(toNode, fromNode);
+            AddTreePath(
+                ScalePoint(start.X, start.Y),
+                ScalePoint(end.X, end.Y),
+                link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
+                link.IsUncertain);
         }
 
         foreach (var node in diagram.Nodes)
         {
             var card = CreateTreePersonCard(node);
             Canvas.SetLeft(card, node.X * _familyTreeZoom);
-            Canvas.SetTop(card, node.Y * _familyTreeZoom - (6 * _familyTreeZoom));
+            Canvas.SetTop(card, node.Y * _familyTreeZoom);
             FamilyTreeCanvas.Children.Add(card);
         }
     }
@@ -1485,9 +1478,22 @@ public partial class MainWindow : Window
 
     private void AddTreePath(Point start, Point end, IBrush stroke, bool isDashed)
     {
-        var controlY = (start.Y + end.Y) / 2;
-        var pathData = FormattableString.Invariant(
-            $"M {start.X:0.###},{start.Y:0.###} C {start.X:0.###},{controlY:0.###} {end.X:0.###},{controlY:0.###} {end.X:0.###},{end.Y:0.###}");
+        var deltaX = Math.Abs(end.X - start.X);
+        var deltaY = Math.Abs(end.Y - start.Y);
+        string pathData;
+        if (deltaX > deltaY)
+        {
+            var controlX = (start.X + end.X) / 2;
+            pathData = FormattableString.Invariant(
+                $"M {start.X:0.###},{start.Y:0.###} C {controlX:0.###},{start.Y:0.###} {controlX:0.###},{end.Y:0.###} {end.X:0.###},{end.Y:0.###}");
+        }
+        else
+        {
+            var controlY = (start.Y + end.Y) / 2;
+            pathData = FormattableString.Invariant(
+                $"M {start.X:0.###},{start.Y:0.###} C {start.X:0.###},{controlY:0.###} {end.X:0.###},{controlY:0.###} {end.X:0.###},{end.Y:0.###}");
+        }
+
         var path = new PathShape
         {
             Data = Geometry.Parse(pathData),
@@ -1500,6 +1506,27 @@ public partial class MainWindow : Window
         }
 
         FamilyTreeCanvas.Children.Add(path);
+    }
+
+    private static Point GetTreeEdgePoint(FamilyTreeDiagramNode fromNode, FamilyTreeDiagramNode toNode)
+    {
+        var fromCenterX = fromNode.X + TreeCardWidth / 2;
+        var fromCenterY = fromNode.Y + TreeCardHeight / 2;
+        var toCenterX = toNode.X + TreeCardWidth / 2;
+        var toCenterY = toNode.Y + TreeCardHeight / 2;
+        var deltaX = toCenterX - fromCenterX;
+        var deltaY = toCenterY - fromCenterY;
+
+        if (Math.Abs(deltaX) >= Math.Abs(deltaY))
+        {
+            return new Point(
+                deltaX >= 0 ? fromNode.X + TreeCardWidth : fromNode.X,
+                fromCenterY);
+        }
+
+        return new Point(
+            fromCenterX,
+            deltaY >= 0 ? fromNode.Y + TreeCardHeight : fromNode.Y);
     }
 
     private Control CreateTreePersonCard(FamilyTreeDiagramNode node)
@@ -1524,8 +1551,9 @@ public partial class MainWindow : Window
         var grid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("68,*,30"),
-            Margin = new Thickness(10 * _familyTreeZoom)
+            ColumnDefinitions = new ColumnDefinitions("82,*,38"),
+            Margin = new Thickness(14 * _familyTreeZoom),
+            RowSpacing = 3 * _familyTreeZoom
         };
         var avatar = new Border
         {
@@ -1540,7 +1568,7 @@ public partial class MainWindow : Window
                 Text = GetAvatarGlyph(person),
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                FontSize = 24 * _familyTreeZoom,
+                FontSize = 26 * _familyTreeZoom,
                 Foreground = Brushes.LightGray
             }
         };
@@ -1549,8 +1577,10 @@ public partial class MainWindow : Window
             Text = node.DisplayName,
             Foreground = Brushes.Black,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 15 * _familyTreeZoom,
-            TextWrapping = TextWrapping.Wrap
+            FontSize = 17 * _familyTreeZoom,
+            TextWrapping = TextWrapping.Wrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxLines = 2
         };
         var birthText = new TextBlock
         {
@@ -1558,8 +1588,9 @@ public partial class MainWindow : Window
                 ? "noch nicht angelegt"
                 : person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 13 * _familyTreeZoom,
-            TextWrapping = TextWrapping.NoWrap
+            FontSize = 14 * _familyTreeZoom,
+            TextWrapping = TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis
         };
         var deathText = new TextBlock
         {
@@ -1567,23 +1598,24 @@ public partial class MainWindow : Window
                 ? "klicken zum Hinzufügen"
                 : person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 13 * _familyTreeZoom,
-            TextWrapping = TextWrapping.NoWrap
+            FontSize = 14 * _familyTreeZoom,
+            TextWrapping = TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis
         };
         var editText = new TextBlock
         {
             Text = "✎",
             Foreground = Brushes.DimGray,
-            FontSize = 17 * _familyTreeZoom,
+            FontSize = 18 * _familyTreeZoom,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
         var plusButton = new Button
         {
             Content = "+",
-            Width = 58 * _familyTreeZoom,
-            Height = 30 * _familyTreeZoom,
+            Width = 70 * _familyTreeZoom,
+            Height = 34 * _familyTreeZoom,
             Padding = new Thickness(0),
-            FontSize = 20 * _familyTreeZoom,
+            FontSize = 22 * _familyTreeZoom,
             Background = Brushes.White,
             BorderBrush = Brushes.Transparent,
             Foreground = Brushes.Black

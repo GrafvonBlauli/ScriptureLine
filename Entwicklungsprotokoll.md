@@ -253,3 +253,12 @@
 **Ergebnis:** Vater- und Mutter-Platzhalter liegen oberhalb und links/rechts der Fokusperson statt auf derselben Höhe. Verbindungslinien und Kartenmittelpunkte verwenden die neuen Kartenmaße.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 50 Tests in 2 m 25 s.
 **Offene Punkte:** Weitere visuelle Feinarbeit für sehr lange Namen und größere Stammbäume bleibt für den nächsten UI-Politur-Schritt.
+
+### 2026-05-27 21:12:55 +02:00 - Stammbaumkarten vergrößert und Linien gekrümmt
+
+**Kategorie:** Stammbaum / UI-Politur / Verbindungslinien
+**Aktion:** Die Stammbaumkarten wurden erneut vergrößert und mit mehr Innenabstand, größerem Portraitkreis, größerer Schrift und Textkürzung ausgestattet. Direkte Beziehungen werden nicht mehr als lineare `Line`-Shapes gezeichnet, sondern als gekrümmte Pfade, die automatisch an der passenden Kartenkante andocken.
+**Geänderte Bereiche:** `MainWindow.axaml.cs`, `FamilyTreeBuilder`.
+**Ergebnis:** Karten bieten mehr Raum für Name, Lebensdaten und Plus-Schaltfläche. Partner-, Geschwister- und weitere direkte Beziehungen verlaufen als sanfte Kurven statt als harte Gerade zwischen Kartenmitten.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 50 Tests in 1 m 50 s.
+**Offene Punkte:** Für sehr große Stammbäume sollte später ein separates Collision-/Auto-Layout mit Zoom-Minimap folgen.

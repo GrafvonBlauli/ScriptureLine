@@ -4,10 +4,10 @@ namespace BibleStudyGenealogy.Rendering.TreeLayout;
 
 public sealed class FamilyTreeBuilder
 {
-    private const double NodeWidth = 260;
-    private const double NodeHeight = 126;
-    private const double HorizontalGap = 70;
-    private const double VerticalGap = 150;
+    private const double NodeWidth = 320;
+    private const double NodeHeight = 150;
+    private const double HorizontalGap = 95;
+    private const double VerticalGap = 180;
     private const double CanvasPadding = 90;
 
     public FamilyTreeSnapshot Build(Person focusPerson, IReadOnlyList<Person> people, IReadOnlyList<Relationship> relationships)
