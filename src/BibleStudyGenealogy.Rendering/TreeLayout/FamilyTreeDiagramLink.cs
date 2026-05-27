@@ -9,4 +9,6 @@ public sealed record FamilyTreeDiagramLink(
     RelationshipType RelationshipType,
     CertaintyLevel CertaintyLevel,
     bool IsDirectional,
-    bool IsUncertain);
+    bool IsUncertain,
+    FamilyTreeDiagramLinkKind LinkKind = FamilyTreeDiagramLinkKind.Direct,
+    Guid? FamilyGroupId = null);

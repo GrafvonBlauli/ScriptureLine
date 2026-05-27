@@ -211,4 +211,64 @@ public sealed class FamilyTreeBuilderTests
         Assert.True(diagram.Links.Single().IsUncertain);
         Assert.True(diagram.Nodes.Single(node => node.PersonId == other.Id).IsUncertain);
     }
+
+    [Fact]
+    public void BuildDiagram_CreatesFamilyConnectorForParentsAndChild()
+    {
+        var builder = new FamilyTreeBuilder();
+        var father = new Person { Id = Guid.NewGuid(), MainName = "Amram", Gender = Gender.Male };
+        var mother = new Person { Id = Guid.NewGuid(), MainName = "Jochebed", Gender = Gender.Female };
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Moses", Gender = Gender.Male };
+        var relationships = new[]
+        {
+            new Relationship
+            {
+                PersonAId = father.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            },
+            new Relationship
+            {
+                PersonAId = mother.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            }
+        };
+
+        var diagram = builder.BuildDiagram(child, new[] { father, mother, child }, relationships, FamilyTreeLayoutOptions.Default);
+        var connector = Assert.Single(diagram.Connectors);
+        var fatherNode = diagram.Nodes.Single(node => node.PersonId == father.Id);
+        var motherNode = diagram.Nodes.Single(node => node.PersonId == mother.Id);
+        var childNode = diagram.Nodes.Single(node => node.PersonId == child.Id);
+
+        Assert.Equal(child.Id, connector.ChildPersonId);
+        Assert.Equal(father.Id, connector.FatherPersonId);
+        Assert.Equal(mother.Id, connector.MotherPersonId);
+        Assert.Equal(fatherNode.Y, motherNode.Y);
+        Assert.True(fatherNode.Y < childNode.Y);
+        Assert.True(connector.Y > fatherNode.Y);
+        Assert.True(connector.Y < childNode.Y);
+        Assert.DoesNotContain(diagram.Links, link => link.RelationshipType == RelationshipType.ParentChild);
+    }
+
+    [Fact]
+    public void BuildDiagram_AddsMissingParentPlaceholdersForFocusPerson()
+    {
+        var builder = new FamilyTreeBuilder();
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Moses", Gender = Gender.Male };
+
+        var diagram = builder.BuildDiagram(child, new[] { child }, Array.Empty<Relationship>(), FamilyTreeLayoutOptions.Default);
+        var fatherPlaceholder = diagram.Nodes.Single(node => node.PlaceholderKind == FamilyTreePlaceholderKind.Father);
+        var motherPlaceholder = diagram.Nodes.Single(node => node.PlaceholderKind == FamilyTreePlaceholderKind.Mother);
+        var connector = Assert.Single(diagram.Connectors);
+
+        Assert.True(fatherPlaceholder.IsPlaceholder);
+        Assert.True(motherPlaceholder.IsPlaceholder);
+        Assert.Equal(child.Id, fatherPlaceholder.SourcePersonId);
+        Assert.Equal(child.Id, motherPlaceholder.SourcePersonId);
+        Assert.Equal(fatherPlaceholder.PersonId, connector.FatherPlaceholderId);
+        Assert.Equal(motherPlaceholder.PersonId, connector.MotherPlaceholderId);
+    }
 }

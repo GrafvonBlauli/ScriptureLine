@@ -681,6 +681,14 @@
                                                TextWrapping="Wrap" />
                                     <ComboBox x:Name="AddRelativeTypeComboBox"
                                               Classes="project-name" />
+                                    <ComboBox x:Name="AddExistingRelationshipTypeComboBox"
+                                              Classes="project-name" />
+                                    <TextBox x:Name="AddExistingPersonSearchTextBox"
+                                             Classes="project-name"
+                                             PlaceholderText="Vorhandene Person suchen"
+                                             TextChanged="AddExistingPersonSearchTextBox_TextChanged" />
+                                    <ComboBox x:Name="AddExistingPersonComboBox"
+                                              Classes="project-name" />
                                     <TextBox x:Name="AddRelativeNameTextBox"
                                              Classes="project-name"
                                              PlaceholderText="Hauptname" />

@@ -12,6 +12,7 @@ using BibleStudyGenealogy.Rendering.Timeline;
 using BibleStudyGenealogy.Rendering.TreeLayout;
 using System.Text.Json;
 using Line = Avalonia.Controls.Shapes.Line;
+using PathShape = Avalonia.Controls.Shapes.Path;
 using ScriptureEvent = BibleStudyGenealogy.Core.Models.Event;
 
 namespace BibleStudyGenealogy.App;
@@ -375,6 +376,11 @@ public partial class MainWindow : Window
         OpenRelativeOverlay(_treeSelectedPersonId.Value);
     }
 
+    private void AddExistingPersonSearchTextBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        RefreshExistingPersonOptions();
+    }
+
     private void ZoomInTreeButton_Click(object? sender, RoutedEventArgs e)
     {
         SetFamilyTreeZoom(_familyTreeZoom + 0.15);
@@ -404,28 +410,56 @@ public partial class MainWindow : Window
             return;
         }
 
+        var kind = (AddRelativeTypeComboBox.SelectedItem as RelativeTypeOption)?.Value ?? RelativeAddKind.Son;
+        var sourcePersonId = _addRelativeSourcePersonId.Value;
+        if (kind == RelativeAddKind.ExistingPerson)
+        {
+            if (AddExistingPersonComboBox.SelectedItem is not PersonListItem existingPerson)
+            {
+                AddRelativeStatusText.Text = "Wähle eine vorhandene Person aus.";
+                return;
+            }
+
+            var existingKind = (AddExistingRelationshipTypeComboBox.SelectedItem as RelativeTypeOption)?.Value ?? RelativeAddKind.Father;
+            var existingRelationship = CreateRelationshipForRelative(existingPerson.Id, sourcePersonId, existingKind);
+            try
+            {
+                await _relationshipRepository.SaveAsync(existingRelationship);
+                AddRelativeOverlay.IsVisible = false;
+                AddRelativeStatusText.Text = "Vorhandene Person wurde verknüpft.";
+                _treeSelectedPersonId = existingPerson.Id;
+                await RefreshRelationshipsAsync();
+                await RefreshStatisticsAsync();
+            }
+            catch (Exception exception)
+            {
+                AddRelativeStatusText.Text = $"Beziehung konnte nicht gespeichert werden: {exception.Message}";
+            }
+
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(AddRelativeNameTextBox.Text))
         {
             AddRelativeStatusText.Text = "Bitte gib mindestens einen Hauptnamen ein.";
             return;
         }
 
-        var sourcePersonId = _addRelativeSourcePersonId.Value;
         var newPerson = new Person
         {
             MainName = AddRelativeNameTextBox.Text.Trim(),
             PrimaryRole = AddRelativeRoleTextBox.Text?.Trim() ?? string.Empty,
-            Gender = (AddRelativeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown,
+            Gender = GetDefaultGenderForRelative(kind, (AddRelativeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown),
             Status = (AddRelativeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active,
             BirthDateInfo = CreateDateInfo(AddRelativeBirthDateTextBox.Text),
             DeathDateInfo = CreateDateInfo(AddRelativeDeathDateTextBox.Text)
         };
-        var relationship = CreateRelationshipForRelative(newPerson.Id, sourcePersonId);
+        var newRelationship = CreateRelationshipForRelative(newPerson.Id, sourcePersonId, kind);
 
         try
         {
             await _personRepository.SaveAsync(newPerson);
-            await _relationshipRepository.SaveAsync(relationship);
+            await _relationshipRepository.SaveAsync(newRelationship);
             AddRelativeOverlay.IsVisible = false;
             AddRelativeStatusText.Text = "Neue Person und Beziehung wurden gespeichert.";
             _treeSelectedPersonId = newPerson.Id;
@@ -882,12 +916,27 @@ public partial class MainWindow : Window
         FamilyTreeGenerationComboBox.SelectedIndex = 0;
         AddRelativeTypeComboBox.ItemsSource = new[]
         {
-            new RelativeTypeOption(RelativeAddKind.Parent, "Elternteil hinzufügen"),
-            new RelativeTypeOption(RelativeAddKind.Child, "Kind hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Father, "Vater hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Mother, "Mutter hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Son, "Sohn hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Daughter, "Tochter hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Brother, "Bruder hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Sister, "Schwester hinzufügen"),
             new RelativeTypeOption(RelativeAddKind.Partner, "Partner hinzufügen"),
-            new RelativeTypeOption(RelativeAddKind.Sibling, "Geschwister hinzufügen")
+            new RelativeTypeOption(RelativeAddKind.ExistingPerson, "Bestehende Person verknüpfen")
         };
-        AddRelativeTypeComboBox.SelectedIndex = 1;
+        AddRelativeTypeComboBox.SelectedIndex = 2;
+        AddExistingRelationshipTypeComboBox.ItemsSource = new[]
+        {
+            new RelativeTypeOption(RelativeAddKind.Father, "als Vater verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Mother, "als Mutter verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Son, "als Sohn verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Daughter, "als Tochter verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Brother, "als Bruder verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Sister, "als Schwester verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Partner, "als Partner verknüpfen")
+        };
+        AddExistingRelationshipTypeComboBox.SelectedIndex = 0;
         AddRelativeGenderComboBox.ItemsSource = DisplayOptions.Genders();
         AddRelativeGenderComboBox.SelectedIndex = 0;
         AddRelativeStatusComboBox.ItemsSource = DisplayOptions.PersonStatuses();
@@ -1304,6 +1353,11 @@ public partial class MainWindow : Window
         FamilyTreeCanvas.Height = diagram.Height * _familyTreeZoom;
         var nodesById = diagram.Nodes.ToDictionary(node => node.PersonId);
 
+        foreach (var connector in diagram.Connectors)
+        {
+            DrawFamilyConnector(connector, nodesById);
+        }
+
         foreach (var link in diagram.Links)
         {
             if (!nodesById.TryGetValue(link.FromPersonId, out var fromNode)
@@ -1341,11 +1395,68 @@ public partial class MainWindow : Window
         return new Point(x * _familyTreeZoom, y * _familyTreeZoom);
     }
 
+    private void DrawFamilyConnector(FamilyTreeDiagramConnector connector, IReadOnlyDictionary<Guid, FamilyTreeDiagramNode> nodesById)
+    {
+        if (!nodesById.TryGetValue(connector.ChildPersonId, out var childNode))
+        {
+            return;
+        }
+
+        var familyPoint = ScalePoint(connector.X, connector.Y);
+        var stroke = connector.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
+        var parentIds = new[] { connector.FatherPersonId, connector.MotherPersonId, connector.FatherPlaceholderId, connector.MotherPlaceholderId }
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .ToList();
+        foreach (var parentId in parentIds)
+        {
+            if (!nodesById.TryGetValue(parentId, out var parentNode))
+            {
+                continue;
+            }
+
+            AddTreePath(
+                ScalePoint(parentNode.X + 88, parentNode.Y + 92),
+                familyPoint,
+                stroke,
+                connector.IsUncertain || parentNode.IsPlaceholder);
+        }
+
+        AddTreePath(
+            familyPoint,
+            ScalePoint(childNode.X + 88, childNode.Y),
+            stroke,
+            connector.IsUncertain);
+    }
+
+    private void AddTreePath(Point start, Point end, IBrush stroke, bool isDashed)
+    {
+        var controlY = (start.Y + end.Y) / 2;
+        var pathData = FormattableString.Invariant(
+            $"M {start.X:0.###},{start.Y:0.###} C {start.X:0.###},{controlY:0.###} {end.X:0.###},{controlY:0.###} {end.X:0.###},{end.Y:0.###}");
+        var path = new PathShape
+        {
+            Data = Geometry.Parse(pathData),
+            Stroke = stroke,
+            StrokeThickness = isDashed ? 1.5 : 2.1
+        };
+        if (isDashed)
+        {
+            path.StrokeDashArray = new AvaloniaList<double> { 4, 4 };
+        }
+
+        FamilyTreeCanvas.Children.Add(path);
+    }
+
     private Control CreateTreePersonCard(FamilyTreeDiagramNode node)
     {
         var person = _treePeople.FirstOrDefault(person => person.Id == node.PersonId);
         var borderBrush = GetTreeCardBorderBrush(person, node);
-        var background = node.IsUncertain ? new SolidColorBrush(Color.Parse("#F1E2B9")) : new SolidColorBrush(Color.Parse("#FDE8A8"));
+        var background = node.IsPlaceholder
+            ? new SolidColorBrush(Color.Parse("#F4F4F1"))
+            : node.IsUncertain
+                ? new SolidColorBrush(Color.Parse("#F1E2B9"))
+                : new SolidColorBrush(Color.Parse("#FDE8A8"));
         var cardButton = new Button
         {
             Width = 176 * _familyTreeZoom,
@@ -1389,13 +1500,17 @@ public partial class MainWindow : Window
         };
         var birthText = new TextBlock
         {
-            Text = person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
+            Text = node.IsPlaceholder
+                ? "noch nicht angelegt"
+                : person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
             Foreground = Brushes.DimGray,
             FontSize = 10.5 * _familyTreeZoom
         };
         var deathText = new TextBlock
         {
-            Text = person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
+            Text = node.IsPlaceholder
+                ? "klicken zum Hinzufügen"
+                : person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
             Foreground = Brushes.DimGray,
             FontSize = 10.5 * _familyTreeZoom
         };
@@ -1417,8 +1532,17 @@ public partial class MainWindow : Window
             BorderBrush = Brushes.Transparent,
             Foreground = Brushes.Black
         };
-        plusButton.Click += (_, _) => OpenRelativeOverlay(node.PersonId);
-        cardButton.Click += (_, _) => SelectTreePerson(node.PersonId);
+        plusButton.Click += (_, _) => OpenTreeNodeAddOverlay(node);
+        cardButton.Click += (_, _) =>
+        {
+            if (node.IsPlaceholder)
+            {
+                OpenTreeNodeAddOverlay(node);
+                return;
+            }
+
+            SelectTreePerson(node.PersonId);
+        };
 
         Grid.SetRowSpan(avatar, 3);
         Grid.SetColumn(avatar, 0);
@@ -1443,8 +1567,27 @@ public partial class MainWindow : Window
         return cardButton;
     }
 
+    private void OpenTreeNodeAddOverlay(FamilyTreeDiagramNode node)
+    {
+        if (node.IsPlaceholder && node.SourcePersonId is not null)
+        {
+            var kind = node.PlaceholderKind == FamilyTreePlaceholderKind.Father
+                ? RelativeAddKind.Father
+                : RelativeAddKind.Mother;
+            OpenRelativeOverlay(node.SourcePersonId.Value, kind);
+            return;
+        }
+
+        OpenRelativeOverlay(node.PersonId);
+    }
+
     private static IBrush GetTreeCardBorderBrush(Person? person, FamilyTreeDiagramNode node)
     {
+        if (node.IsPlaceholder)
+        {
+            return Brushes.Gray;
+        }
+
         if (node.IsUncertain)
         {
             return Brushes.Gray;
@@ -1509,30 +1652,50 @@ public partial class MainWindow : Window
         TreeStatusComboBox.SelectedIndex = 0;
     }
 
-    private void OpenRelativeOverlay(Guid sourcePersonId)
+    private void OpenRelativeOverlay(Guid sourcePersonId, RelativeAddKind? presetKind = null)
     {
         _addRelativeSourcePersonId = sourcePersonId;
         var sourceName = _people.FirstOrDefault(person => person.Id == sourcePersonId)?.MainName ?? "dieser Person";
         sourceName = _treePeople.FirstOrDefault(person => person.Id == sourcePersonId)?.MainName ?? sourceName;
         AddRelativeTitleText.Text = $"Verwandte zu {sourceName}";
+        if (presetKind is not null)
+        {
+            SelectComboItem(AddRelativeTypeComboBox, (RelativeTypeOption option) => option.Value == presetKind.Value);
+            SelectComboItem(AddExistingRelationshipTypeComboBox, (RelativeTypeOption option) => option.Value == presetKind.Value);
+        }
+
         AddRelativeNameTextBox.Text = string.Empty;
         AddRelativeRoleTextBox.Text = string.Empty;
         AddRelativeBirthDateTextBox.Text = string.Empty;
         AddRelativeDeathDateTextBox.Text = string.Empty;
+        AddExistingPersonSearchTextBox.Text = string.Empty;
+        RefreshExistingPersonOptions();
         AddRelativeStatusText.Text = "Neue Person und Beziehung werden gemeinsam gespeichert.";
         AddRelativeOverlay.IsVisible = true;
         AddRelativeNameTextBox.Focus();
     }
 
-    private Relationship CreateRelationshipForRelative(Guid newPersonId, Guid sourcePersonId)
+    private void RefreshExistingPersonOptions()
     {
-        var kind = (AddRelativeTypeComboBox.SelectedItem as RelativeTypeOption)?.Value ?? RelativeAddKind.Child;
+        var searchText = AddExistingPersonSearchTextBox.Text?.Trim() ?? string.Empty;
+        AddExistingPersonComboBox.ItemsSource = _people
+            .Where(person => _addRelativeSourcePersonId is null || person.Id != _addRelativeSourcePersonId.Value)
+            .Where(person => string.IsNullOrWhiteSpace(searchText)
+                || person.MainName.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)
+                || person.PrimaryRole.Contains(searchText, StringComparison.CurrentCultureIgnoreCase))
+            .Take(40)
+            .Select(person => new PersonListItem(person.Id, person.MainName, person.PrimaryRole))
+            .ToList();
+    }
+
+    private Relationship CreateRelationshipForRelative(Guid relativePersonId, Guid sourcePersonId, RelativeAddKind kind)
+    {
         var certainty = (AddRelativeCertaintyComboBox.SelectedItem as EnumDisplay<CertaintyLevel>)?.Value ?? CertaintyLevel.Likely;
         return kind switch
         {
-            RelativeAddKind.Parent => new Relationship
+            RelativeAddKind.Father or RelativeAddKind.Mother => new Relationship
             {
-                PersonAId = newPersonId,
+                PersonAId = relativePersonId,
                 PersonBId = sourcePersonId,
                 RelationshipType = RelationshipType.ParentChild,
                 Direction = RelationshipDirection.PersonAToPersonB,
@@ -1541,15 +1704,15 @@ public partial class MainWindow : Window
             RelativeAddKind.Partner => new Relationship
             {
                 PersonAId = sourcePersonId,
-                PersonBId = newPersonId,
+                PersonBId = relativePersonId,
                 RelationshipType = RelationshipType.Spouse,
                 Direction = RelationshipDirection.Undirected,
                 CertaintyLevel = certainty
             },
-            RelativeAddKind.Sibling => new Relationship
+            RelativeAddKind.Brother or RelativeAddKind.Sister => new Relationship
             {
                 PersonAId = sourcePersonId,
-                PersonBId = newPersonId,
+                PersonBId = relativePersonId,
                 RelationshipType = RelationshipType.Sibling,
                 Direction = RelationshipDirection.Undirected,
                 CertaintyLevel = certainty
@@ -1557,11 +1720,21 @@ public partial class MainWindow : Window
             _ => new Relationship
             {
                 PersonAId = sourcePersonId,
-                PersonBId = newPersonId,
+                PersonBId = relativePersonId,
                 RelationshipType = RelationshipType.ParentChild,
                 Direction = RelationshipDirection.PersonAToPersonB,
                 CertaintyLevel = certainty
             }
+        };
+    }
+
+    private static Gender GetDefaultGenderForRelative(RelativeAddKind kind, Gender selectedGender)
+    {
+        return kind switch
+        {
+            RelativeAddKind.Father or RelativeAddKind.Son or RelativeAddKind.Brother => Gender.Male,
+            RelativeAddKind.Mother or RelativeAddKind.Daughter or RelativeAddKind.Sister => Gender.Female,
+            _ => selectedGender
         };
     }
 
@@ -1863,10 +2036,14 @@ public partial class MainWindow : Window
 
     private enum RelativeAddKind
     {
-        Parent,
-        Child,
+        Father,
+        Mother,
+        Son,
+        Daughter,
+        Brother,
+        Sister,
         Partner,
-        Sibling
+        ExistingPerson
     }
 
     private sealed record RelativeTypeOption(RelativeAddKind Value, string Label)

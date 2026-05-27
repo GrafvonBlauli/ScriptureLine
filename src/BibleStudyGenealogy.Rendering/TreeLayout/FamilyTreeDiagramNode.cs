@@ -9,4 +9,8 @@ public sealed record FamilyTreeDiagramNode(
     double X,
     double Y,
     bool IsFocus,
-    bool IsUncertain);
+    bool IsUncertain,
+    bool IsPlaceholder = false,
+    FamilyTreePlaceholderKind PlaceholderKind = FamilyTreePlaceholderKind.None,
+    Guid? SourcePersonId = null,
+    Guid? FamilyGroupId = null);

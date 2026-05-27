@@ -217,3 +217,21 @@
 **Ergebnis:** Das Stammbaum-Modul wirkt mehr wie ein echter Stammbaum statt wie eine Formularseite. Beziehungserfassung ist nicht mehr als extra Bereich sichtbar. Der Performance-Stresstest bleibt als grober Regressionsschutz erhalten, wurde aber wegen lokaler I/O-Varianz auf 300 s Bulk-Insert-Schwelle erweitert.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 43 Tests in 1 m 34 s.
 **Offene Punkte:** Commit erstellen und nach GitHub pushen.
+
+### 2026-05-22 23:55:00 +02:00 - Familienconnectoren und geführte Verwandtenanlage vorbereitet
+
+**Kategorie:** Stammbaum / Layoutmodell / UI-Workflow / Tests
+**Aktion:** Das Stammbaumdiagramm wurde um Familienconnectoren, Vater-/Mutter-Platzhalter und Linkarten erweitert. Das Verwandte-hinzufügen-Overlay wurde auf konkrete Aktionen wie Vater, Mutter, Sohn, Tochter, Bruder, Schwester, Partner und bestehende Person verknüpfen vorbereitet.
+**Geänderte Bereiche:** `FamilyTreeBuilder`, Diagramm-DTOs im Rendering-Projekt, `MainWindow.axaml`, `MainWindow.axaml.cs`, `FamilyTreeBuilderTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Direkte Eltern-Kind-Diagonalen sollen durch gemeinsame Familienpunkte ersetzt werden. Fehlende Eltern werden als UI-Platzhalter dargestellt und nicht gespeichert. Bestehende Personen können im Overlay zur Verknüpfung ausgewählt werden.
+**Verifikation:** Build/Test konnten in dieser Sitzung nicht erneut ausgeführt werden, weil die Umgebung eskalierte Kommandos wegen eines Nutzungslimits blockiert hat. `dotnet build` und `dotnet test` müssen nach Freigabe nachgeholt werden.
+**Offene Punkte:** Build-/Testlauf nachholen, eventuelle Compile-Korrekturen durchführen, Commit `Improve family tree layout and add relative workflows` erstellen und pushen.
+
+### 2026-05-27 19:45:10 +02:00 - Stammbaum-Buildfehler bereinigt
+
+**Kategorie:** Buildfix / Stammbaum / Verifikation
+**Aktion:** Der gemeldete Compilerfehler `CS0136` in `MainWindow.axaml.cs` wurde behoben. Im Verwandte-hinzufügen-Workflow wurden zwei lokale Variablen mit demselben Namen `relationship` eindeutig in `existingRelationship` und `newRelationship` getrennt.
+**Geänderte Bereiche:** `MainWindow.axaml.cs`.
+**Ergebnis:** Der Verknüpfungszweig für bestehende Personen und der Zweig zum Anlegen neuer Verwandter verwenden nun getrennte lokale Variablennamen und kompilieren sauber.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 45 Tests in 1 m 46 s.
+**Offene Punkte:** Commit `Improve family tree layout and add relative workflows` erstellen und nach GitHub pushen, sobald die laufenden Stammbaum-Änderungen final abgenommen sind.
