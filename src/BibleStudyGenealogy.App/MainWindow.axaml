@@ -604,6 +604,9 @@
                                         <TextBox x:Name="TreeMainNameTextBox"
                                                  Classes="project-name"
                                                  PlaceholderText="Hauptname" />
+                                        <TextBox x:Name="TreeAlternativeNamesTextBox"
+                                                 Classes="project-name"
+                                                 PlaceholderText="Alternative Namen" />
                                         <TextBox x:Name="TreeRoleTextBox"
                                                  Classes="project-name"
                                                  PlaceholderText="Rolle oder Kurzinfo" />
@@ -620,6 +623,12 @@
                                         <TextBox x:Name="TreeAgeTextBox"
                                                  Classes="project-name"
                                                  PlaceholderText="Alter, z. B. 69" />
+                                        <TextBox x:Name="TreeBirthPlaceTextBox"
+                                                 Classes="project-name"
+                                                 PlaceholderText="Geburtsort" />
+                                        <TextBox x:Name="TreeDeathPlaceTextBox"
+                                                 Classes="project-name"
+                                                 PlaceholderText="Sterbeort" />
                                         <StackPanel Orientation="Horizontal"
                                                     Spacing="8">
                                             <Button Classes="secondary"
@@ -640,6 +649,11 @@
                                                 Content="Person im Stammbaum speichern"
                                                 Click="TreeSavePersonButton_Click"
                                                 IsEnabled="False" />
+                                        <Button x:Name="TreeCancelEditButton"
+                                                Classes="secondary"
+                                                Content="Änderungen verwerfen"
+                                                Click="TreeCancelEditButton_Click"
+                                                IsEnabled="False" />
                                         <Button x:Name="TreeAddRelativeButton"
                                                 Classes="secondary"
                                                 Content="Verwandte hinzufügen"
@@ -653,6 +667,22 @@
                                         <TextBlock x:Name="TreePartnersText" Text="Partner: keine" Classes="body" TextWrapping="Wrap" />
                                         <TextBlock x:Name="TreeChildrenText" Text="Kinder: keine" Classes="body" TextWrapping="Wrap" />
                                         <TextBlock x:Name="TreeOtherText" Text="Weitere oder unsichere Beziehungen: keine" Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock Text="Ereignisse"
+                                                   Foreground="{StaticResource InkGreenBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="TreeEventsText" Text="Keine Ereignisse geladen." Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock Text="Bibelstellen"
+                                                   Foreground="{StaticResource InkGreenBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="TreeBibleReferencesText" Text="Keine Bibelstellen verknüpft." Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock Text="Medien / Fotos / PDFs"
+                                                   Foreground="{StaticResource InkGreenBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="TreeMediaText" Text="Keine Medien ausgewählt." Classes="body" TextWrapping="Wrap" />
+                                        <TextBlock Text="Kommentare / Forschungsnotizen"
+                                                   Foreground="{StaticResource InkGreenBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock x:Name="TreeResearchNotesText" Text="Nutze die Kurzbeschreibung als erste Forschungsnotiz; ein eigener Fragenbereich folgt später." Classes="body" TextWrapping="Wrap" />
                                     </StackPanel>
                                     </ScrollViewer>
                                 </Border>
@@ -680,7 +710,8 @@
                                                Classes="body"
                                                TextWrapping="Wrap" />
                                     <ComboBox x:Name="AddRelativeTypeComboBox"
-                                              Classes="project-name" />
+                                              Classes="project-name"
+                                              SelectionChanged="AddRelativeTypeComboBox_SelectionChanged" />
                                     <ComboBox x:Name="AddExistingRelationshipTypeComboBox"
                                               Classes="project-name" />
                                     <TextBox x:Name="AddExistingPersonSearchTextBox"
@@ -701,6 +732,15 @@
                                     <TextBox x:Name="AddRelativeDeathDateTextBox"
                                              Classes="project-name"
                                              PlaceholderText="Tod" />
+                                    <TextBox x:Name="AddRelativeSourceNoteTextBox"
+                                             Classes="project-name"
+                                             PlaceholderText="Bibelstelle oder Quellenhinweis" />
+                                    <TextBox x:Name="AddRelativeCommentTextBox"
+                                             Classes="project-name"
+                                             PlaceholderText="Kommentar zur Beziehung"
+                                             MinHeight="58"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap" />
                                     <ComboBox x:Name="AddRelativeGenderComboBox"
                                               Classes="project-name" />
                                     <ComboBox x:Name="AddRelativeStatusComboBox"

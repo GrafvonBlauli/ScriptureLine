@@ -235,3 +235,12 @@
 **Ergebnis:** Der Verknüpfungszweig für bestehende Personen und der Zweig zum Anlegen neuer Verwandter verwenden nun getrennte lokale Variablennamen und kompilieren sauber.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 45 Tests in 1 m 46 s.
 **Offene Punkte:** Commit `Improve family tree layout and add relative workflows` erstellen und nach GitHub pushen, sobald die laufenden Stammbaum-Änderungen final abgenommen sind.
+
+### 2026-05-27 20:07:54 +02:00 - Stammbaum-Sideboard und Lebensdaten-MVP umgesetzt
+
+**Kategorie:** Stammbaum / Sideboard / Lebensdaten / SQLite / Tests
+**Aktion:** Das Stammbaum-Sideboard wurde um alternative Namen, Geburtsort, Sterbeort, Alter, Abbrechen-Aktion und kompakte Bereiche für Ereignisse, Bibelstellen, Medien und Forschungsnotizen erweitert. Das Verwandte-hinzufügen-Overlay unterscheidet neue Personen und vorhandene Personen, ergänzt Kind mit unbekanntem Geschlecht sowie weitere Beziehung und speichert Quellenhinweis und Kommentar.
+**Geänderte Bereiche:** `Person`, `LifeDateCalculationService`, `PersonRepository`, `LocalProjectService`, `MainWindow.axaml`, `MainWindow.axaml.cs`, `PersonRepositoryTests`, `LifeDateCalculationServiceTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Personen können im Stammbaum-Sideboard mit zusätzlichen Lebensdaten bearbeitet werden. Alter, Geburtsjahr und Sterbejahr werden für einfache Jahreswerte inklusive v. Chr. berechnet. SQLite speichert `AgeAtDeath`, Geburts-/Sterbeort und die v.-Chr.-Kennzeichen für Geburt/Tod.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 49 Tests in 2 m 15 s.
+**Offene Punkte:** Visuelle Feinarbeit am frei positionierten Overlay und echtes Drag-Pan bleiben spätere Ausbaustufen.

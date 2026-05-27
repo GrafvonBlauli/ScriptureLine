@@ -106,4 +106,43 @@ public sealed class PersonRepositoryTests
         Assert.Equal("1449", loadedPerson.DeathDateInfo?.ApproximationText);
         Assert.Equal(1449, loadedPerson.DeathDateInfo?.Year);
     }
+
+    [Fact]
+    public async Task SaveAsync_PersistsSideboardLifeDetails()
+    {
+        await using var project = await TestProject.CreateAsync();
+        var repository = new PersonRepository(project.Workspace.DatabasePath);
+        var person = new Person
+        {
+            MainName = "Mose",
+            AgeAtDeath = 120,
+            BirthPlaceText = "Ägypten",
+            DeathPlaceText = "Moab",
+            BirthDateInfo = new DateInfo
+            {
+                ApproximationText = "ca. 1526 v. Chr.",
+                Year = 1526,
+                IsBeforeChrist = true,
+                DateType = DateType.TextOnly
+            },
+            DeathDateInfo = new DateInfo
+            {
+                ApproximationText = "ca. 1406 v. Chr.",
+                Year = 1406,
+                IsBeforeChrist = true,
+                DateType = DateType.TextOnly
+            }
+        };
+
+        await repository.SaveAsync(person);
+
+        var loadedPerson = await repository.GetByIdAsync(person.Id);
+
+        Assert.NotNull(loadedPerson);
+        Assert.Equal(120, loadedPerson.AgeAtDeath);
+        Assert.Equal("Ägypten", loadedPerson.BirthPlaceText);
+        Assert.Equal("Moab", loadedPerson.DeathPlaceText);
+        Assert.True(loadedPerson.BirthDateInfo?.IsBeforeChrist);
+        Assert.True(loadedPerson.DeathDateInfo?.IsBeforeChrist);
+    }
 }

@@ -32,8 +32,13 @@ public sealed class PersonRepository : IPersonRepository
                    LongDescription,
                    BirthDateText,
                    BirthYear,
+                   BirthIsBeforeChrist,
                    DeathDateText,
                    DeathYear,
+                   DeathIsBeforeChrist,
+                   AgeAtDeath,
+                   BirthPlaceText,
+                   DeathPlaceText,
                    PortraitMediaFileId,
                    Status,
                    CreatedAtUtc,
@@ -77,8 +82,13 @@ public sealed class PersonRepository : IPersonRepository
                    LongDescription,
                    BirthDateText,
                    BirthYear,
+                   BirthIsBeforeChrist,
                    DeathDateText,
                    DeathYear,
+                   DeathIsBeforeChrist,
+                   AgeAtDeath,
+                   BirthPlaceText,
+                   DeathPlaceText,
                    PortraitMediaFileId,
                    Status,
                    CreatedAtUtc,
@@ -125,8 +135,13 @@ public sealed class PersonRepository : IPersonRepository
                 LongDescription,
                 BirthDateText,
                 BirthYear,
+                BirthIsBeforeChrist,
                 DeathDateText,
                 DeathYear,
+                DeathIsBeforeChrist,
+                AgeAtDeath,
+                BirthPlaceText,
+                DeathPlaceText,
                 PortraitMediaFileId,
                 Status,
                 CreatedAtUtc,
@@ -146,8 +161,13 @@ public sealed class PersonRepository : IPersonRepository
                 $longDescription,
                 $birthDateText,
                 $birthYear,
+                $birthIsBeforeChrist,
                 $deathDateText,
                 $deathYear,
+                $deathIsBeforeChrist,
+                $ageAtDeath,
+                $birthPlaceText,
+                $deathPlaceText,
                 $portraitMediaFileId,
                 $status,
                 $createdAtUtc,
@@ -166,8 +186,13 @@ public sealed class PersonRepository : IPersonRepository
                 LongDescription = excluded.LongDescription,
                 BirthDateText = excluded.BirthDateText,
                 BirthYear = excluded.BirthYear,
+                BirthIsBeforeChrist = excluded.BirthIsBeforeChrist,
                 DeathDateText = excluded.DeathDateText,
                 DeathYear = excluded.DeathYear,
+                DeathIsBeforeChrist = excluded.DeathIsBeforeChrist,
+                AgeAtDeath = excluded.AgeAtDeath,
+                BirthPlaceText = excluded.BirthPlaceText,
+                DeathPlaceText = excluded.DeathPlaceText,
                 PortraitMediaFileId = excluded.PortraitMediaFileId,
                 Status = excluded.Status,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;
@@ -186,8 +211,13 @@ public sealed class PersonRepository : IPersonRepository
         command.Parameters.AddWithValue("$longDescription", person.LongDescription.Trim());
         command.Parameters.AddWithValue("$birthDateText", person.BirthDateInfo?.ApproximationText.Trim() ?? string.Empty);
         command.Parameters.AddWithValue("$birthYear", person.BirthDateInfo?.Year ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$birthIsBeforeChrist", person.BirthDateInfo?.IsBeforeChrist == true ? 1 : 0);
         command.Parameters.AddWithValue("$deathDateText", person.DeathDateInfo?.ApproximationText.Trim() ?? string.Empty);
         command.Parameters.AddWithValue("$deathYear", person.DeathDateInfo?.Year ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$deathIsBeforeChrist", person.DeathDateInfo?.IsBeforeChrist == true ? 1 : 0);
+        command.Parameters.AddWithValue("$ageAtDeath", person.AgeAtDeath ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$birthPlaceText", person.BirthPlaceText.Trim());
+        command.Parameters.AddWithValue("$deathPlaceText", person.DeathPlaceText.Trim());
         command.Parameters.AddWithValue("$portraitMediaFileId", person.PortraitMediaFileId?.ToString() ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("$status", person.Status.ToString());
         command.Parameters.AddWithValue("$createdAtUtc", person.CreatedAtUtc.ToString("O"));
@@ -221,16 +251,19 @@ public sealed class PersonRepository : IPersonRepository
             Occupation = reader.GetString(8),
             ShortDescription = reader.GetString(9),
             LongDescription = reader.GetString(10),
-            BirthDateInfo = ReadDateInfo(reader.GetString(11), reader.IsDBNull(12) ? null : reader.GetInt32(12)),
-            DeathDateInfo = ReadDateInfo(reader.GetString(13), reader.IsDBNull(14) ? null : reader.GetInt32(14)),
-            PortraitMediaFileId = reader.IsDBNull(15) ? null : Guid.Parse(reader.GetString(15)),
-            Status = Enum.Parse<PersonStatus>(reader.GetString(16)),
-            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(17)),
-            UpdatedAtUtc = DateTimeOffset.Parse(reader.GetString(18))
+            BirthDateInfo = ReadDateInfo(reader.GetString(11), reader.IsDBNull(12) ? null : reader.GetInt32(12), reader.GetInt32(13) == 1),
+            DeathDateInfo = ReadDateInfo(reader.GetString(14), reader.IsDBNull(15) ? null : reader.GetInt32(15), reader.GetInt32(16) == 1),
+            AgeAtDeath = reader.IsDBNull(17) ? null : reader.GetInt32(17),
+            BirthPlaceText = reader.GetString(18),
+            DeathPlaceText = reader.GetString(19),
+            PortraitMediaFileId = reader.IsDBNull(20) ? null : Guid.Parse(reader.GetString(20)),
+            Status = Enum.Parse<PersonStatus>(reader.GetString(21)),
+            CreatedAtUtc = DateTimeOffset.Parse(reader.GetString(22)),
+            UpdatedAtUtc = DateTimeOffset.Parse(reader.GetString(23))
         };
     }
 
-    private static DateInfo? ReadDateInfo(string approximationText, int? year)
+    private static DateInfo? ReadDateInfo(string approximationText, int? year, bool isBeforeChrist)
     {
         if (string.IsNullOrWhiteSpace(approximationText) && year is null)
         {
@@ -242,7 +275,16 @@ public sealed class PersonRepository : IPersonRepository
             DateType = string.IsNullOrWhiteSpace(approximationText) ? DateType.ExactYear : DateType.TextOnly,
             ApproximationText = approximationText,
             Year = year,
+            IsBeforeChrist = isBeforeChrist || ContainsBeforeChristMarker(approximationText),
             CertaintyLevel = CertaintyLevel.Unknown
         };
+    }
+
+    private static bool ContainsBeforeChristMarker(string value)
+    {
+        return value.Contains("v. Chr", StringComparison.CurrentCultureIgnoreCase)
+            || value.Contains("v.Chr", StringComparison.CurrentCultureIgnoreCase)
+            || value.Contains("bc", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("bce", StringComparison.OrdinalIgnoreCase);
     }
 }

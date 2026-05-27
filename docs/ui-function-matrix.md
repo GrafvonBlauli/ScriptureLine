@@ -1,6 +1,6 @@
 # ScriptureLine UI-Funktionsmatrix
 
-Stand: 2026-05-22
+Stand: 2026-05-27
 
 Diese Matrix hält fest, welche sichtbaren Bedienelemente bereits eine echte Funktion haben und welche bewusst als Platzhalter markiert sind.
 
@@ -21,7 +21,8 @@ Diese Matrix hält fest, welche sichtbaren Bedienelemente bereits eine echte Fun
 | Sidebar | Karte, Orte, Forschungsfragen | Platzhalterseite | erreichbar, aber klar als noch nicht umgesetzt markiert |
 | Personen | Suche, Auswahl, Speichern | aktiv | über Repository-Tests und Smoke-Test-Szenarien abgesichert |
 | Beziehungen | Speichern, Auswählen, Archivieren | aktiv | Tests decken Speichern, Duplikate, Archivierung und FK-Integrität ab |
-| Stammbaum | Familienlayout, Platzhalterkarten, Plus-Overlay, Seitenpanel | aktiv in Version 0.3 | Vater/Mutter-Platzhalter, Familienconnectoren, Sideboard-Bearbeitung und geführtes Hinzufügen neuer oder bestehender Personen sind integriert |
+| Stammbaum | Familienlayout, Platzhalterkarten, Plus-Overlay, Seitenpanel | aktiv in Version 0.4 | Vater/Mutter-Platzhalter, Familienconnectoren, Sideboard-Bearbeitung, Lebensdaten, Ortsfelder und geführtes Hinzufügen neuer oder bestehender Personen sind integriert |
+| Stammbaum | Lebensdaten berechnen | aktiv | Geburtsjahr, Sterbejahr und Alter werden für einfache Jahreswerte inklusive v. Chr. berechnet |
 | Ereignisse | Speichern, Auswahl | aktiv | Tests decken Speichern, Update, Datierung und Personen-Verknüpfung ab |
 | Bibelstellen | Speichern, Auswahl | aktiv | Tests decken Speichern, Suche, Bereichsvalidierung und Event-Verknüpfung ab |
 | Mediathek | Import, Suche, Beschreibung, Verknüpfung, Portrait | aktiv | Tests decken Import, Pfade, Suche, Links, fehlende Dateien und PortraitId ab |

@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using BibleStudyGenealogy.Core.Models;
+using BibleStudyGenealogy.Core.Services;
 using BibleStudyGenealogy.Infrastructure.Repositories;
 using BibleStudyGenealogy.Infrastructure.Services;
 using BibleStudyGenealogy.Rendering.Timeline;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     private IMediaRepository? _mediaRepository;
     private readonly FamilyTreeBuilder _familyTreeBuilder = new();
     private readonly TimelineBuilder _timelineBuilder = new();
+    private readonly LifeDateCalculationService _lifeDateCalculationService = new();
     private readonly MediaImportService _mediaImportService = new();
     private ProjectWorkspace? _currentWorkspace;
     private Person? _currentPerson;
@@ -412,6 +414,7 @@ public partial class MainWindow : Window
 
         var kind = (AddRelativeTypeComboBox.SelectedItem as RelativeTypeOption)?.Value ?? RelativeAddKind.Son;
         var sourcePersonId = _addRelativeSourcePersonId.Value;
+        var relationshipKind = kind;
         if (kind == RelativeAddKind.ExistingPerson)
         {
             if (AddExistingPersonComboBox.SelectedItem is not PersonListItem existingPerson)
@@ -449,12 +452,12 @@ public partial class MainWindow : Window
         {
             MainName = AddRelativeNameTextBox.Text.Trim(),
             PrimaryRole = AddRelativeRoleTextBox.Text?.Trim() ?? string.Empty,
-            Gender = GetDefaultGenderForRelative(kind, (AddRelativeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown),
+            Gender = GetDefaultGenderForRelative(relationshipKind, (AddRelativeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown),
             Status = (AddRelativeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active,
             BirthDateInfo = CreateDateInfo(AddRelativeBirthDateTextBox.Text),
             DeathDateInfo = CreateDateInfo(AddRelativeDeathDateTextBox.Text)
         };
-        var newRelationship = CreateRelationshipForRelative(newPerson.Id, sourcePersonId, kind);
+        var newRelationship = CreateRelationshipForRelative(newPerson.Id, sourcePersonId, relationshipKind);
 
         try
         {
@@ -476,6 +479,11 @@ public partial class MainWindow : Window
     private void CancelRelativeButton_Click(object? sender, RoutedEventArgs e)
     {
         AddRelativeOverlay.IsVisible = false;
+    }
+
+    private void AddRelativeTypeComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        UpdateRelativeOverlayMode();
     }
 
     private async void TreeSavePersonButton_Click(object? sender, RoutedEventArgs e)
@@ -500,12 +508,16 @@ public partial class MainWindow : Window
         }
 
         person.MainName = TreeMainNameTextBox.Text.Trim();
+        person.AlternativeNames = TreeAlternativeNamesTextBox.Text?.Trim() ?? string.Empty;
         person.PrimaryRole = TreeRoleTextBox.Text?.Trim() ?? string.Empty;
         person.ShortDescription = TreeShortDescriptionTextBox.Text?.Trim() ?? string.Empty;
         person.Gender = (TreeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown;
         person.Status = (TreeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active;
         person.BirthDateInfo = CreateDateInfo(TreeBirthDateTextBox.Text);
         person.DeathDateInfo = CreateDateInfo(TreeDeathDateTextBox.Text);
+        person.AgeAtDeath = TryReadInt(TreeAgeTextBox.Text, out var ageAtDeath) ? ageAtDeath : null;
+        person.BirthPlaceText = TreeBirthPlaceTextBox.Text?.Trim() ?? string.Empty;
+        person.DeathPlaceText = TreeDeathPlaceTextBox.Text?.Trim() ?? string.Empty;
 
         await _personRepository.SaveAsync(person);
         if (_currentPerson?.Id == person.Id)
@@ -520,30 +532,58 @@ public partial class MainWindow : Window
         FamilyTreeStatusText.Text = "Person wurde im Stammbaum gespeichert.";
     }
 
+    private async void TreeCancelEditButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_treeSelectedPersonId is null || _personRepository is null)
+        {
+            ClearTreePersonForm();
+            return;
+        }
+
+        var person = await _personRepository.GetByIdAsync(_treeSelectedPersonId.Value);
+        if (person is null)
+        {
+            ClearTreePersonForm();
+        }
+        else
+        {
+            FillTreePersonForm(person);
+        }
+        FamilyTreeStatusText.Text = person is null
+            ? "Person wurde nicht gefunden."
+            : "Änderungen wurden verworfen.";
+    }
+
     private void CalculateDeathFromAgeButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (!TryReadInt(TreeAgeTextBox.Text, out var age) || !TryReadYear(TreeBirthDateTextBox.Text, out var birthYear))
+        var result = _lifeDateCalculationService.CalculateDeathFromBirthAndAge(
+            CreateDateInfo(TreeBirthDateTextBox.Text),
+            TryReadInt(TreeAgeTextBox.Text, out var age) ? age : null);
+
+        if (result is null)
         {
             FamilyTreeStatusText.Text = "Gib ein Alter und ein Geburtsjahr ein, um das Sterbejahr zu berechnen.";
             return;
         }
 
-        var deathYear = birthYear + age;
-        TreeDeathDateTextBox.Text = deathYear.ToString();
-        FamilyTreeStatusText.Text = $"Sterbejahr aus Alter berechnet: {deathYear}.";
+        TreeDeathDateTextBox.Text = FormatDateInfo(result.ToDateInfo());
+        FamilyTreeStatusText.Text = $"Sterbejahr aus Alter berechnet: {TreeDeathDateTextBox.Text}.";
     }
 
     private void CalculateBirthFromAgeButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (!TryReadInt(TreeAgeTextBox.Text, out var age) || !TryReadYear(TreeDeathDateTextBox.Text, out var deathYear))
+        var result = _lifeDateCalculationService.CalculateBirthFromDeathAndAge(
+            CreateDateInfo(TreeDeathDateTextBox.Text),
+            TryReadInt(TreeAgeTextBox.Text, out var age) ? age : null);
+
+        if (result is null)
         {
             FamilyTreeStatusText.Text = "Gib ein Alter und ein Sterbejahr ein, um das Geburtsjahr zu berechnen.";
             return;
         }
 
-        var birthYear = deathYear - age;
-        TreeBirthDateTextBox.Text = birthYear.ToString();
-        FamilyTreeStatusText.Text = $"Geburtsjahr aus Alter berechnet: {birthYear}.";
+        TreeBirthDateTextBox.Text = FormatDateInfo(result.ToDateInfo());
+        FamilyTreeStatusText.Text = $"Geburtsjahr aus Alter berechnet: {TreeBirthDateTextBox.Text}.";
     }
 
     private void CreateEventButton_Click(object? sender, RoutedEventArgs e)
@@ -920,9 +960,11 @@ public partial class MainWindow : Window
             new RelativeTypeOption(RelativeAddKind.Mother, "Mutter hinzufügen"),
             new RelativeTypeOption(RelativeAddKind.Son, "Sohn hinzufügen"),
             new RelativeTypeOption(RelativeAddKind.Daughter, "Tochter hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.Child, "Kind hinzufügen, Geschlecht unbekannt"),
             new RelativeTypeOption(RelativeAddKind.Brother, "Bruder hinzufügen"),
             new RelativeTypeOption(RelativeAddKind.Sister, "Schwester hinzufügen"),
             new RelativeTypeOption(RelativeAddKind.Partner, "Partner hinzufügen"),
+            new RelativeTypeOption(RelativeAddKind.OtherRelationship, "Weitere Beziehung hinzufügen"),
             new RelativeTypeOption(RelativeAddKind.ExistingPerson, "Bestehende Person verknüpfen")
         };
         AddRelativeTypeComboBox.SelectedIndex = 2;
@@ -932,9 +974,11 @@ public partial class MainWindow : Window
             new RelativeTypeOption(RelativeAddKind.Mother, "als Mutter verknüpfen"),
             new RelativeTypeOption(RelativeAddKind.Son, "als Sohn verknüpfen"),
             new RelativeTypeOption(RelativeAddKind.Daughter, "als Tochter verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.Child, "als Kind verknüpfen"),
             new RelativeTypeOption(RelativeAddKind.Brother, "als Bruder verknüpfen"),
             new RelativeTypeOption(RelativeAddKind.Sister, "als Schwester verknüpfen"),
-            new RelativeTypeOption(RelativeAddKind.Partner, "als Partner verknüpfen")
+            new RelativeTypeOption(RelativeAddKind.Partner, "als Partner verknüpfen"),
+            new RelativeTypeOption(RelativeAddKind.OtherRelationship, "als weitere Beziehung verknüpfen")
         };
         AddExistingRelationshipTypeComboBox.SelectedIndex = 0;
         AddRelativeGenderComboBox.ItemsSource = DisplayOptions.Genders();
@@ -987,6 +1031,7 @@ public partial class MainWindow : Window
             TreeSelectedPersonText.Text = "Noch keine Person ausgewählt.";
             ClearTreePersonForm();
             TreeSavePersonButton.IsEnabled = false;
+            TreeCancelEditButton.IsEnabled = false;
             TreeAddRelativeButton.IsEnabled = false;
             FamilyTreeCanvas.Children.Clear();
             return;
@@ -1281,6 +1326,10 @@ public partial class MainWindow : Window
         if (_currentPerson is null || _relationshipRepository is null || _personRepository is null)
         {
             FamilyTreeCanvas.Children.Clear();
+            ClearTreePersonForm();
+            TreeSavePersonButton.IsEnabled = false;
+            TreeCancelEditButton.IsEnabled = false;
+            TreeAddRelativeButton.IsEnabled = false;
             return;
         }
 
@@ -1625,17 +1674,30 @@ public partial class MainWindow : Window
         }
 
         TreeSavePersonButton.IsEnabled = person is not null;
+        TreeCancelEditButton.IsEnabled = person is not null;
         TreeAddRelativeButton.IsEnabled = true;
     }
 
     private void FillTreePersonForm(Person person)
     {
         TreeMainNameTextBox.Text = person.MainName;
+        TreeAlternativeNamesTextBox.Text = person.AlternativeNames;
         TreeRoleTextBox.Text = person.PrimaryRole;
         TreeBirthDateTextBox.Text = FormatDateInfo(person.BirthDateInfo);
         TreeDeathDateTextBox.Text = FormatDateInfo(person.DeathDateInfo);
-        TreeAgeTextBox.Text = TryGetLifeAge(person, out var age) ? age.ToString() : string.Empty;
+        TreeAgeTextBox.Text = person.AgeAtDeath?.ToString()
+            ?? (TryGetLifeAge(person, out var age) ? age.ToString() : string.Empty);
+        TreeBirthPlaceTextBox.Text = person.BirthPlaceText;
+        TreeDeathPlaceTextBox.Text = person.DeathPlaceText;
         TreeShortDescriptionTextBox.Text = person.ShortDescription;
+        TreeEventsText.Text = "Ereignisse der Person werden im Ereignisse-Modul gepflegt.";
+        TreeBibleReferencesText.Text = "Bibelstellen werden im Bibelstellen-Modul gepflegt.";
+        TreeMediaText.Text = person.PortraitMediaFileId is null
+            ? "Kein Portrait oder Medium verknüpft."
+            : "Portrait/Medium ist verknüpft.";
+        TreeResearchNotesText.Text = string.IsNullOrWhiteSpace(person.LongDescription)
+            ? "Noch keine ausführliche Forschungsnotiz hinterlegt."
+            : person.LongDescription;
         SelectEnumValue(TreeGenderComboBox, person.Gender);
         SelectEnumValue(TreeStatusComboBox, person.Status);
     }
@@ -1643,11 +1705,18 @@ public partial class MainWindow : Window
     private void ClearTreePersonForm()
     {
         TreeMainNameTextBox.Text = string.Empty;
+        TreeAlternativeNamesTextBox.Text = string.Empty;
         TreeRoleTextBox.Text = string.Empty;
         TreeBirthDateTextBox.Text = string.Empty;
         TreeDeathDateTextBox.Text = string.Empty;
         TreeAgeTextBox.Text = string.Empty;
+        TreeBirthPlaceTextBox.Text = string.Empty;
+        TreeDeathPlaceTextBox.Text = string.Empty;
         TreeShortDescriptionTextBox.Text = string.Empty;
+        TreeEventsText.Text = "Keine Ereignisse geladen.";
+        TreeBibleReferencesText.Text = "Keine Bibelstellen verknüpft.";
+        TreeMediaText.Text = "Keine Medien ausgewählt.";
+        TreeResearchNotesText.Text = "Keine Forschungsnotizen geladen.";
         TreeGenderComboBox.SelectedIndex = 0;
         TreeStatusComboBox.SelectedIndex = 0;
     }
@@ -1668,11 +1737,39 @@ public partial class MainWindow : Window
         AddRelativeRoleTextBox.Text = string.Empty;
         AddRelativeBirthDateTextBox.Text = string.Empty;
         AddRelativeDeathDateTextBox.Text = string.Empty;
+        AddRelativeSourceNoteTextBox.Text = string.Empty;
+        AddRelativeCommentTextBox.Text = string.Empty;
         AddExistingPersonSearchTextBox.Text = string.Empty;
         RefreshExistingPersonOptions();
+        UpdateRelativeOverlayMode();
         AddRelativeStatusText.Text = "Neue Person und Beziehung werden gemeinsam gespeichert.";
         AddRelativeOverlay.IsVisible = true;
         AddRelativeNameTextBox.Focus();
+    }
+
+    private void UpdateRelativeOverlayMode()
+    {
+        var kind = (AddRelativeTypeComboBox.SelectedItem as RelativeTypeOption)?.Value ?? RelativeAddKind.Son;
+        var usesExistingPerson = kind == RelativeAddKind.ExistingPerson;
+
+        AddExistingRelationshipTypeComboBox.IsVisible = usesExistingPerson;
+        AddExistingPersonSearchTextBox.IsVisible = usesExistingPerson;
+        AddExistingPersonComboBox.IsVisible = usesExistingPerson;
+
+        AddRelativeNameTextBox.IsVisible = !usesExistingPerson;
+        AddRelativeRoleTextBox.IsVisible = !usesExistingPerson;
+        AddRelativeBirthDateTextBox.IsVisible = !usesExistingPerson;
+        AddRelativeDeathDateTextBox.IsVisible = !usesExistingPerson;
+        AddRelativeGenderComboBox.IsVisible = !usesExistingPerson;
+        AddRelativeStatusComboBox.IsVisible = !usesExistingPerson;
+        if (!usesExistingPerson)
+        {
+            SelectEnumValue(AddRelativeGenderComboBox, GetDefaultGenderForRelative(kind, Gender.Unknown));
+        }
+
+        AddRelativeStatusText.Text = usesExistingPerson
+            ? "Vorhandene Person suchen, Beziehungstyp festlegen und verknüpfen."
+            : "Neue Person und Beziehung werden gemeinsam gespeichert.";
     }
 
     private void RefreshExistingPersonOptions()
@@ -1691,7 +1788,7 @@ public partial class MainWindow : Window
     private Relationship CreateRelationshipForRelative(Guid relativePersonId, Guid sourcePersonId, RelativeAddKind kind)
     {
         var certainty = (AddRelativeCertaintyComboBox.SelectedItem as EnumDisplay<CertaintyLevel>)?.Value ?? CertaintyLevel.Likely;
-        return kind switch
+        var relationship = kind switch
         {
             RelativeAddKind.Father or RelativeAddKind.Mother => new Relationship
             {
@@ -1717,6 +1814,14 @@ public partial class MainWindow : Window
                 Direction = RelationshipDirection.Undirected,
                 CertaintyLevel = certainty
             },
+            RelativeAddKind.OtherRelationship => new Relationship
+            {
+                PersonAId = sourcePersonId,
+                PersonBId = relativePersonId,
+                RelationshipType = RelationshipType.UnknownRelated,
+                Direction = RelationshipDirection.Undirected,
+                CertaintyLevel = certainty
+            },
             _ => new Relationship
             {
                 PersonAId = sourcePersonId,
@@ -1726,6 +1831,10 @@ public partial class MainWindow : Window
                 CertaintyLevel = certainty
             }
         };
+
+        relationship.SourceNote = AddRelativeSourceNoteTextBox.Text?.Trim() ?? string.Empty;
+        relationship.Comment = AddRelativeCommentTextBox.Text?.Trim() ?? string.Empty;
+        return relationship;
     }
 
     private static Gender GetDefaultGenderForRelative(RelativeAddKind kind, Gender selectedGender)
@@ -1789,6 +1898,7 @@ public partial class MainWindow : Window
                 : DateType.TextOnly,
             ApproximationText = trimmedText,
             Year = TryReadYear(trimmedText, out year) ? year : null,
+            IsBeforeChrist = ContainsBeforeChristMarker(trimmedText),
             CertaintyLevel = CertaintyLevel.Unknown
         };
     }
@@ -1800,9 +1910,16 @@ public partial class MainWindow : Window
             return string.Empty;
         }
 
-        return string.IsNullOrWhiteSpace(dateInfo.ApproximationText)
-            ? dateInfo.Year?.ToString() ?? string.Empty
-            : dateInfo.ApproximationText;
+        if (!string.IsNullOrWhiteSpace(dateInfo.ApproximationText))
+        {
+            return dateInfo.ApproximationText;
+        }
+
+        return dateInfo.Year is null
+            ? string.Empty
+            : dateInfo.IsBeforeChrist
+                ? $"{dateInfo.Year} v. Chr."
+                : dateInfo.Year.Value.ToString();
     }
 
     private static string FormatLifeDateLine(Person person)
@@ -1834,13 +1951,16 @@ public partial class MainWindow : Window
     private static bool TryGetLifeAge(Person person, out int age)
     {
         age = 0;
-        if (person.BirthDateInfo?.Year is null || person.DeathDateInfo?.Year is null)
+        if (person.AgeAtDeath is not null)
         {
-            return false;
+            age = person.AgeAtDeath.Value;
+            return age >= 0;
         }
 
-        age = person.DeathDateInfo.Year.Value - person.BirthDateInfo.Year.Value;
-        return age >= 0;
+        var calculator = new LifeDateCalculationService();
+        var result = calculator.CalculateAgeAtDeath(person.BirthDateInfo, person.DeathDateInfo);
+        age = result?.Age ?? 0;
+        return result?.Age is not null;
     }
 
     private static string EmptyAsUnknown(string value)
@@ -1858,6 +1978,14 @@ public partial class MainWindow : Window
 
         var match = System.Text.RegularExpressions.Regex.Match(value, @"-?\d{1,4}");
         return match.Success && int.TryParse(match.Value, out year);
+    }
+
+    private static bool ContainsBeforeChristMarker(string value)
+    {
+        return value.Contains("v. Chr", StringComparison.CurrentCultureIgnoreCase)
+            || value.Contains("v.Chr", StringComparison.CurrentCultureIgnoreCase)
+            || value.Contains("bc", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("bce", StringComparison.OrdinalIgnoreCase);
     }
 
     private string FormatMediaTitle(MediaFile mediaFile)
@@ -2040,9 +2168,11 @@ public partial class MainWindow : Window
         Mother,
         Son,
         Daughter,
+        Child,
         Brother,
         Sister,
         Partner,
+        OtherRelationship,
         ExistingPerson
     }
 

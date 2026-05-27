@@ -272,8 +272,13 @@ public sealed class LocalProjectService : IProjectService
         {
             ["BirthDateText"] = "ALTER TABLE Persons ADD COLUMN BirthDateText TEXT NOT NULL DEFAULT '';",
             ["BirthYear"] = "ALTER TABLE Persons ADD COLUMN BirthYear INTEGER NULL;",
+            ["BirthIsBeforeChrist"] = "ALTER TABLE Persons ADD COLUMN BirthIsBeforeChrist INTEGER NOT NULL DEFAULT 0;",
             ["DeathDateText"] = "ALTER TABLE Persons ADD COLUMN DeathDateText TEXT NOT NULL DEFAULT '';",
-            ["DeathYear"] = "ALTER TABLE Persons ADD COLUMN DeathYear INTEGER NULL;"
+            ["DeathYear"] = "ALTER TABLE Persons ADD COLUMN DeathYear INTEGER NULL;",
+            ["DeathIsBeforeChrist"] = "ALTER TABLE Persons ADD COLUMN DeathIsBeforeChrist INTEGER NOT NULL DEFAULT 0;",
+            ["AgeAtDeath"] = "ALTER TABLE Persons ADD COLUMN AgeAtDeath INTEGER NULL;",
+            ["BirthPlaceText"] = "ALTER TABLE Persons ADD COLUMN BirthPlaceText TEXT NOT NULL DEFAULT '';",
+            ["DeathPlaceText"] = "ALTER TABLE Persons ADD COLUMN DeathPlaceText TEXT NOT NULL DEFAULT '';"
         };
 
         foreach (var column in requiredColumns)
@@ -350,8 +355,13 @@ public sealed class LocalProjectService : IProjectService
             LongDescription TEXT NOT NULL DEFAULT '',
             BirthDateText TEXT NOT NULL DEFAULT '',
             BirthYear INTEGER NULL,
+            BirthIsBeforeChrist INTEGER NOT NULL DEFAULT 0,
             DeathDateText TEXT NOT NULL DEFAULT '',
             DeathYear INTEGER NULL,
+            DeathIsBeforeChrist INTEGER NOT NULL DEFAULT 0,
+            AgeAtDeath INTEGER NULL,
+            BirthPlaceText TEXT NOT NULL DEFAULT '',
+            DeathPlaceText TEXT NOT NULL DEFAULT '',
             PortraitMediaFileId TEXT NULL,
             Status TEXT NOT NULL,
             CreatedAtUtc TEXT NOT NULL,

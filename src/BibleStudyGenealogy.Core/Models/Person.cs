@@ -20,6 +20,12 @@ public sealed class Person
 
     public DateInfo? DeathDateInfo { get; set; }
 
+    public int? AgeAtDeath { get; set; }
+
+    public string BirthPlaceText { get; set; } = string.Empty;
+
+    public string DeathPlaceText { get; set; } = string.Empty;
+
     public string PrimaryRole { get; set; } = string.Empty;
 
     public string Occupation { get; set; } = string.Empty;
