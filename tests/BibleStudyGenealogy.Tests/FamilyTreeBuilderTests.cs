@@ -271,4 +271,21 @@ public sealed class FamilyTreeBuilderTests
         Assert.Equal(fatherPlaceholder.PersonId, connector.FatherPlaceholderId);
         Assert.Equal(motherPlaceholder.PersonId, connector.MotherPlaceholderId);
     }
+
+    [Fact]
+    public void BuildDiagram_ParentPlaceholdersDoNotOverlapFocusPerson()
+    {
+        var builder = new FamilyTreeBuilder();
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Noah", Gender = Gender.Male };
+
+        var diagram = builder.BuildDiagram(child, new[] { child }, Array.Empty<Relationship>(), FamilyTreeLayoutOptions.Default);
+        var childNode = diagram.Nodes.Single(node => node.PersonId == child.Id);
+        var fatherPlaceholder = diagram.Nodes.Single(node => node.PlaceholderKind == FamilyTreePlaceholderKind.Father);
+        var motherPlaceholder = diagram.Nodes.Single(node => node.PlaceholderKind == FamilyTreePlaceholderKind.Mother);
+
+        Assert.True(fatherPlaceholder.Y < childNode.Y);
+        Assert.True(motherPlaceholder.Y < childNode.Y);
+        Assert.True(fatherPlaceholder.X < childNode.X);
+        Assert.True(motherPlaceholder.X > childNode.X);
+    }
 }

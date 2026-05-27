@@ -4,10 +4,10 @@ namespace BibleStudyGenealogy.Rendering.TreeLayout;
 
 public sealed class FamilyTreeBuilder
 {
-    private const double NodeWidth = 176;
-    private const double NodeHeight = 92;
-    private const double HorizontalGap = 34;
-    private const double VerticalGap = 118;
+    private const double NodeWidth = 260;
+    private const double NodeHeight = 126;
+    private const double HorizontalGap = 70;
+    private const double VerticalGap = 150;
     private const double CanvasPadding = 90;
 
     public FamilyTreeSnapshot Build(Person focusPerson, IReadOnlyList<Person> people, IReadOnlyList<Relationship> relationships)
@@ -139,6 +139,13 @@ public sealed class FamilyTreeBuilder
             }
 
             rowIndex++;
+        }
+
+        if (!HasVisibleParent(focusPerson.Id, activeRelationships, visiblePersonIds))
+        {
+            nodes = nodes
+                .Select(node => node with { Y = node.Y + NodeHeight + VerticalGap })
+                .ToList();
         }
 
         var connectors = CreateFamilyConnectors(focusPerson.Id, nodes, activeRelationships, visiblePersonIds, peopleById);
@@ -339,6 +346,18 @@ public sealed class FamilyTreeBuilder
         }
 
         return connectors;
+    }
+
+    private static bool HasVisibleParent(
+        Guid childPersonId,
+        IReadOnlyList<Relationship> relationships,
+        IReadOnlySet<Guid> visiblePersonIds)
+    {
+        return relationships
+            .Select(GetParentChildPair)
+            .Any(pair => pair is not null
+                && pair.Value.ChildPersonId == childPersonId
+                && visiblePersonIds.Contains(pair.Value.ParentPersonId));
     }
 
     private static FamilyTreeDiagramNode CreatePlaceholderNode(

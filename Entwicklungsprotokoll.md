@@ -244,3 +244,12 @@
 **Ergebnis:** Personen können im Stammbaum-Sideboard mit zusätzlichen Lebensdaten bearbeitet werden. Alter, Geburtsjahr und Sterbejahr werden für einfache Jahreswerte inklusive v. Chr. berechnet. SQLite speichert `AgeAtDeath`, Geburts-/Sterbeort und die v.-Chr.-Kennzeichen für Geburt/Tod.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 49 Tests in 2 m 15 s.
 **Offene Punkte:** Visuelle Feinarbeit am frei positionierten Overlay und echtes Drag-Pan bleiben spätere Ausbaustufen.
+
+### 2026-05-27 20:56:06 +02:00 - Stammbaumkarten und Eltern-Platzhalter entkoppelt
+
+**Kategorie:** Stammbaum / Layout / UI-Politur / Tests
+**Aktion:** Die Stammbaumkarten wurden breiter und höher angelegt, damit Portrait, Name, Lebensdaten und Plus-Schaltfläche nicht mehr ineinanderlaufen. Der Layout-Builder reserviert nun eine eigene Elternreihe, wenn die Fokusperson noch keine gespeicherten Eltern hat.
+**Geänderte Bereiche:** `FamilyTreeBuilder`, `MainWindow.axaml.cs`, `FamilyTreeBuilderTests`.
+**Ergebnis:** Vater- und Mutter-Platzhalter liegen oberhalb und links/rechts der Fokusperson statt auf derselben Höhe. Verbindungslinien und Kartenmittelpunkte verwenden die neuen Kartenmaße.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 50 Tests in 2 m 25 s.
+**Offene Punkte:** Weitere visuelle Feinarbeit für sehr lange Namen und größere Stammbäume bleibt für den nächsten UI-Politur-Schritt.

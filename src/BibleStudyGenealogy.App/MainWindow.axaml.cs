@@ -20,6 +20,11 @@ namespace BibleStudyGenealogy.App;
 
 public partial class MainWindow : Window
 {
+    private const double TreeCardWidth = 260;
+    private const double TreeCardHeight = 126;
+    private const double TreeCardCenterX = TreeCardWidth / 2;
+    private const double TreeCardAvatarSize = 58;
+
     private readonly IProjectService _projectService = new LocalProjectService();
     private readonly AppStateStore _appStateStore = new();
     private IPersonRepository? _personRepository;
@@ -1417,8 +1422,8 @@ public partial class MainWindow : Window
 
             var line = new Line
             {
-                StartPoint = ScalePoint(fromNode.X + 88, fromNode.Y + 46),
-                EndPoint = ScalePoint(toNode.X + 88, toNode.Y + 46),
+                StartPoint = ScalePoint(fromNode.X + TreeCardCenterX, fromNode.Y + TreeCardHeight / 2),
+                EndPoint = ScalePoint(toNode.X + TreeCardCenterX, toNode.Y + TreeCardHeight / 2),
                 Stroke = link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
                 StrokeThickness = link.IsUncertain ? 1.5 : 2.2
             };
@@ -1465,7 +1470,7 @@ public partial class MainWindow : Window
             }
 
             AddTreePath(
-                ScalePoint(parentNode.X + 88, parentNode.Y + 92),
+                ScalePoint(parentNode.X + TreeCardCenterX, parentNode.Y + TreeCardHeight),
                 familyPoint,
                 stroke,
                 connector.IsUncertain || parentNode.IsPlaceholder);
@@ -1473,7 +1478,7 @@ public partial class MainWindow : Window
 
         AddTreePath(
             familyPoint,
-            ScalePoint(childNode.X + 88, childNode.Y),
+            ScalePoint(childNode.X + TreeCardCenterX, childNode.Y),
             stroke,
             connector.IsUncertain);
     }
@@ -1508,8 +1513,8 @@ public partial class MainWindow : Window
                 : new SolidColorBrush(Color.Parse("#FDE8A8"));
         var cardButton = new Button
         {
-            Width = 176 * _familyTreeZoom,
-            Height = 92 * _familyTreeZoom,
+            Width = TreeCardWidth * _familyTreeZoom,
+            Height = TreeCardHeight * _familyTreeZoom,
             Padding = new Thickness(0),
             Background = background,
             BorderBrush = borderBrush,
@@ -1519,14 +1524,14 @@ public partial class MainWindow : Window
         var grid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("48,*,Auto"),
-            Margin = new Thickness(8 * _familyTreeZoom)
+            ColumnDefinitions = new ColumnDefinitions("68,*,30"),
+            Margin = new Thickness(10 * _familyTreeZoom)
         };
         var avatar = new Border
         {
-            Width = 42 * _familyTreeZoom,
-            Height = 42 * _familyTreeZoom,
-            CornerRadius = new CornerRadius(21 * _familyTreeZoom),
+            Width = TreeCardAvatarSize * _familyTreeZoom,
+            Height = TreeCardAvatarSize * _familyTreeZoom,
+            CornerRadius = new CornerRadius(TreeCardAvatarSize * _familyTreeZoom / 2),
             Background = Brushes.White,
             BorderBrush = Brushes.LightGray,
             BorderThickness = new Thickness(1),
@@ -1535,7 +1540,7 @@ public partial class MainWindow : Window
                 Text = GetAvatarGlyph(person),
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                FontSize = 22 * _familyTreeZoom,
+                FontSize = 24 * _familyTreeZoom,
                 Foreground = Brushes.LightGray
             }
         };
@@ -1544,7 +1549,7 @@ public partial class MainWindow : Window
             Text = node.DisplayName,
             Foreground = Brushes.Black,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 12 * _familyTreeZoom,
+            FontSize = 15 * _familyTreeZoom,
             TextWrapping = TextWrapping.Wrap
         };
         var birthText = new TextBlock
@@ -1553,7 +1558,8 @@ public partial class MainWindow : Window
                 ? "noch nicht angelegt"
                 : person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 10.5 * _familyTreeZoom
+            FontSize = 13 * _familyTreeZoom,
+            TextWrapping = TextWrapping.NoWrap
         };
         var deathText = new TextBlock
         {
@@ -1561,22 +1567,23 @@ public partial class MainWindow : Window
                 ? "klicken zum Hinzufügen"
                 : person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 10.5 * _familyTreeZoom
+            FontSize = 13 * _familyTreeZoom,
+            TextWrapping = TextWrapping.NoWrap
         };
         var editText = new TextBlock
         {
             Text = "✎",
             Foreground = Brushes.DimGray,
-            FontSize = 15 * _familyTreeZoom,
+            FontSize = 17 * _familyTreeZoom,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
         var plusButton = new Button
         {
             Content = "+",
-            Width = 32 * _familyTreeZoom,
-            Height = 22 * _familyTreeZoom,
+            Width = 58 * _familyTreeZoom,
+            Height = 30 * _familyTreeZoom,
             Padding = new Thickness(0),
-            FontSize = 17 * _familyTreeZoom,
+            FontSize = 20 * _familyTreeZoom,
             Background = Brushes.White,
             BorderBrush = Brushes.Transparent,
             Foreground = Brushes.Black
