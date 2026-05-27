@@ -262,3 +262,12 @@
 **Ergebnis:** Karten bieten mehr Raum für Name, Lebensdaten und Plus-Schaltfläche. Partner-, Geschwister- und weitere direkte Beziehungen verlaufen als sanfte Kurven statt als harte Gerade zwischen Kartenmitten.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 50 Tests in 1 m 50 s.
 **Offene Punkte:** Für sehr große Stammbäume sollte später ein separates Collision-/Auto-Layout mit Zoom-Minimap folgen.
+
+### 2026-05-27 21:43:32 +02:00 - Einheitliche Kanten-Andockpunkte für Stammbaumlinien
+
+**Kategorie:** Stammbaum / Verbindungslinien / UI-Politur
+**Aktion:** Die gekrümmte Pfadlogik wurde auf alle Stammbaumverbindungen angewendet. Auch Eltern- und Kindlinien über Familienpunkte nutzen nun automatische Andockpunkte an der passenden Kartenkante.
+**Geänderte Bereiche:** `MainWindow.axaml.cs`.
+**Ergebnis:** Direkte Beziehungen, Elternlinien und Kindlinien verwenden dieselbe Kurvenlogik statt fester Kartenmittelpunkte. Dadurch starten und enden Linien konsistenter an den Formen.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 50 Tests in 1 m 39 s.
+**Offene Punkte:** Optische Feinarbeit an Kreuzungen und großen Baumkomponenten bleibt für ein späteres Auto-Layout.

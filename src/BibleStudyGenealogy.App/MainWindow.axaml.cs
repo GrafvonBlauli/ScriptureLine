@@ -1442,6 +1442,11 @@ public partial class MainWindow : Window
         return new Point(x * _familyTreeZoom, y * _familyTreeZoom);
     }
 
+    private Point ScalePoint(Point point)
+    {
+        return ScalePoint(point.X, point.Y);
+    }
+
     private void DrawFamilyConnector(FamilyTreeDiagramConnector connector, IReadOnlyDictionary<Guid, FamilyTreeDiagramNode> nodesById)
     {
         if (!nodesById.TryGetValue(connector.ChildPersonId, out var childNode))
@@ -1449,7 +1454,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var familyPoint = ScalePoint(connector.X, connector.Y);
+        var familyPoint = new Point(connector.X, connector.Y);
+        var scaledFamilyPoint = ScalePoint(familyPoint);
         var stroke = connector.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
         var parentIds = new[] { connector.FatherPersonId, connector.MotherPersonId, connector.FatherPlaceholderId, connector.MotherPlaceholderId }
             .Where(id => id is not null)
@@ -1463,15 +1469,15 @@ public partial class MainWindow : Window
             }
 
             AddTreePath(
-                ScalePoint(parentNode.X + TreeCardCenterX, parentNode.Y + TreeCardHeight),
-                familyPoint,
+                ScalePoint(GetTreeEdgePoint(parentNode, familyPoint)),
+                scaledFamilyPoint,
                 stroke,
                 connector.IsUncertain || parentNode.IsPlaceholder);
         }
 
         AddTreePath(
-            familyPoint,
-            ScalePoint(childNode.X + TreeCardCenterX, childNode.Y),
+            scaledFamilyPoint,
+            ScalePoint(GetTreeEdgePoint(childNode, familyPoint)),
             stroke,
             connector.IsUncertain);
     }
@@ -1510,10 +1516,17 @@ public partial class MainWindow : Window
 
     private static Point GetTreeEdgePoint(FamilyTreeDiagramNode fromNode, FamilyTreeDiagramNode toNode)
     {
-        var fromCenterX = fromNode.X + TreeCardWidth / 2;
-        var fromCenterY = fromNode.Y + TreeCardHeight / 2;
         var toCenterX = toNode.X + TreeCardWidth / 2;
         var toCenterY = toNode.Y + TreeCardHeight / 2;
+        return GetTreeEdgePoint(fromNode, new Point(toCenterX, toCenterY));
+    }
+
+    private static Point GetTreeEdgePoint(FamilyTreeDiagramNode fromNode, Point targetPoint)
+    {
+        var fromCenterX = fromNode.X + TreeCardWidth / 2;
+        var fromCenterY = fromNode.Y + TreeCardHeight / 2;
+        var toCenterX = targetPoint.X;
+        var toCenterY = targetPoint.Y;
         var deltaX = toCenterX - fromCenterX;
         var deltaY = toCenterY - fromCenterY;
 
