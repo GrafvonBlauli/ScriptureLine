@@ -288,4 +288,29 @@ public sealed class FamilyTreeBuilderTests
         Assert.True(fatherPlaceholder.X < childNode.X);
         Assert.True(motherPlaceholder.X > childNode.X);
     }
+
+    [Fact]
+    public void BuildDiagram_ChildConnectorDoesNotMoveFocusPersonIntoChildParentSlot()
+    {
+        var builder = new FamilyTreeBuilder();
+        var focus = new Person { Id = Guid.NewGuid(), MainName = "Noah", Gender = Gender.Male };
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Sem", Gender = Gender.Male };
+        var relationship = new Relationship
+        {
+            PersonAId = focus.Id,
+            PersonBId = child.Id,
+            RelationshipType = RelationshipType.ParentChild,
+            Direction = RelationshipDirection.PersonAToPersonB
+        };
+
+        var diagram = builder.BuildDiagram(focus, new[] { focus, child }, new[] { relationship }, FamilyTreeLayoutOptions.Default);
+        var focusNode = diagram.Nodes.Single(node => node.PersonId == focus.Id);
+        var childNode = diagram.Nodes.Single(node => node.PersonId == child.Id);
+        var childConnector = diagram.Connectors.Single(connector => connector.ChildPersonId == child.Id);
+
+        Assert.True(focusNode.Y < childNode.Y);
+        Assert.True(childConnector.Y > focusNode.Y);
+        Assert.True(childConnector.Y < childNode.Y);
+        Assert.NotEqual(childConnector.FamilyGroupId, focusNode.FamilyGroupId);
+    }
 }

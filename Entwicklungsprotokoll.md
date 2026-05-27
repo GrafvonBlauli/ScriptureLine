@@ -271,3 +271,12 @@
 **Ergebnis:** Direkte Beziehungen, Elternlinien und Kindlinien verwenden dieselbe Kurvenlogik statt fester Kartenmittelpunkte. Dadurch starten und enden Linien konsistenter an den Formen.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` erfolgreich mit 50 Tests in 1 m 39 s.
 **Offene Punkte:** Optische Feinarbeit an Kreuzungen und großen Baumkomponenten bleibt für ein späteres Auto-Layout.
+
+### 2026-05-27 22:04:11 +02:00 - Kinderconnectoren und Stammbaum-Navigation verbessert
+
+**Kategorie:** Stammbaum / Kinderlayout / Navigation / Tests
+**Aktion:** Kinderconnectoren verschieben die Fokusperson nicht mehr in einen Elternslot. Familienpunkte werden aus den tatsächlichen Kartenpositionen berechnet. Die Stammbaumfläche kann nun per Mausziehen verschoben werden; zusätzlich wurden Pfeilbuttons für horizontales und vertikales Navigieren ergänzt.
+**Geänderte Bereiche:** `FamilyTreeBuilder`, `MainWindow.axaml`, `MainWindow.axaml.cs`, `FamilyTreeBuilderTests`.
+**Ergebnis:** Kinderbeziehungen bleiben zwischen Fokus/Partner und Kind verankert, statt die Fokuskarte aus ihrer Position zu ziehen. Navigation im Stammbaum ist über Scrollbars, Mausrad-Zoom, Drag-Pan, Pfeile und Zentrieren möglich.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. Erster `dotnet test`-Lauf lief in das 5-Minuten-Timeout; erneuter Lauf mit längerem Timeout erfolgreich mit 51 Tests in 2 m 15 s.
+**Offene Punkte:** Eine Minimap und ein echtes automatisches Collision-Layout bleiben spätere Ausbaustufen.

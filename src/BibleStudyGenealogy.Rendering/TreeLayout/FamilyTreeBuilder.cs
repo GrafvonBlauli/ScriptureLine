@@ -320,7 +320,7 @@ public sealed class FamilyTreeBuilder
             }
             else if (father is not null)
             {
-                MoveNode(nodes, father.PersonId, fatherX, parentY, familyGroupId);
+                MoveNodeIfParentGeneration(nodes, father, fatherX, parentY, familyGroupId);
             }
 
             if (mother is null && hasFocusParents)
@@ -330,8 +330,17 @@ public sealed class FamilyTreeBuilder
             }
             else if (mother is not null)
             {
-                MoveNode(nodes, mother.PersonId, motherX, parentY, familyGroupId);
+                MoveNodeIfParentGeneration(nodes, mother, motherX, parentY, familyGroupId);
             }
+
+            nodesById = nodes.ToDictionary(node => node.PersonId);
+            var connectorX = GetFamilyConnectorX(
+                nodesById,
+                childCenter,
+                father?.PersonId,
+                mother?.PersonId,
+                fatherPlaceholderId,
+                motherPlaceholderId);
 
             connectors.Add(new FamilyTreeDiagramConnector(
                 familyGroupId,
@@ -340,7 +349,7 @@ public sealed class FamilyTreeBuilder
                 mother?.PersonId,
                 fatherPlaceholderId,
                 motherPlaceholderId,
-                childCenter,
+                connectorX,
                 childNode.Y - VerticalGap / 2,
                 parentRelationships.Any(pair => pair.IsUncertain)));
         }
@@ -383,6 +392,38 @@ public sealed class FamilyTreeBuilder
             kind,
             sourcePersonId,
             familyGroupId);
+    }
+
+    private static void MoveNodeIfParentGeneration(
+        List<FamilyTreeDiagramNode> nodes,
+        FamilyTreeDiagramNode node,
+        double x,
+        double y,
+        Guid familyGroupId)
+    {
+        if (node.Kind != FamilyTreeNodeKind.Parent)
+        {
+            return;
+        }
+
+        MoveNode(nodes, node.PersonId, x, y, familyGroupId);
+    }
+
+    private static double GetFamilyConnectorX(
+        IReadOnlyDictionary<Guid, FamilyTreeDiagramNode> nodesById,
+        double fallbackX,
+        params Guid?[] personIds)
+    {
+        var parentCenters = personIds
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Where(nodesById.ContainsKey)
+            .Select(id => nodesById[id].X + NodeWidth / 2)
+            .ToList();
+
+        return parentCenters.Count == 0
+            ? fallbackX
+            : parentCenters.Average();
     }
 
     private static void MoveNode(List<FamilyTreeDiagramNode> nodes, Guid personId, double x, double y, Guid familyGroupId)

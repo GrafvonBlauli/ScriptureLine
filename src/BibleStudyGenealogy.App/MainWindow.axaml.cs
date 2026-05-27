@@ -49,6 +49,9 @@ public partial class MainWindow : Window
     private IReadOnlyList<Person> _treePeople = Array.Empty<Person>();
     private AppModule _currentModule = AppModule.Dashboard;
     private double _familyTreeZoom = 1;
+    private bool _isFamilyTreePanning;
+    private Point _familyTreePanStartPoint;
+    private Vector _familyTreePanStartOffset;
     private Guid? _treeSelectedPersonId;
     private Guid? _addRelativeSourcePersonId;
 
@@ -402,9 +405,66 @@ public partial class MainWindow : Window
         CenterFamilyTree();
     }
 
+    private void PanTreeLeftButton_Click(object? sender, RoutedEventArgs e)
+    {
+        PanFamilyTree(-220, 0);
+    }
+
+    private void PanTreeRightButton_Click(object? sender, RoutedEventArgs e)
+    {
+        PanFamilyTree(220, 0);
+    }
+
+    private void PanTreeUpButton_Click(object? sender, RoutedEventArgs e)
+    {
+        PanFamilyTree(0, -180);
+    }
+
+    private void PanTreeDownButton_Click(object? sender, RoutedEventArgs e)
+    {
+        PanFamilyTree(0, 180);
+    }
+
     private void FamilyTreeCanvas_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         SetFamilyTreeZoom(_familyTreeZoom + (e.Delta.Y > 0 ? 0.1 : -0.1));
+        e.Handled = true;
+    }
+
+    private void FamilyTreeCanvas_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(FamilyTreeCanvas);
+        if (!point.Properties.IsLeftButtonPressed && !point.Properties.IsMiddleButtonPressed)
+        {
+            return;
+        }
+
+        _isFamilyTreePanning = true;
+        _familyTreePanStartPoint = e.GetPosition(FamilyTreeScrollViewer);
+        _familyTreePanStartOffset = FamilyTreeScrollViewer.Offset;
+        e.Pointer.Capture(FamilyTreeCanvas);
+        e.Handled = true;
+    }
+
+    private void FamilyTreeCanvas_PointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_isFamilyTreePanning)
+        {
+            return;
+        }
+
+        var currentPoint = e.GetPosition(FamilyTreeScrollViewer);
+        var delta = _familyTreePanStartPoint - currentPoint;
+        FamilyTreeScrollViewer.Offset = new Vector(
+            Math.Max(0, _familyTreePanStartOffset.X + delta.X),
+            Math.Max(0, _familyTreePanStartOffset.Y + delta.Y));
+        e.Handled = true;
+    }
+
+    private void FamilyTreeCanvas_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _isFamilyTreePanning = false;
+        e.Pointer.Capture(null);
         e.Handled = true;
     }
 
@@ -1913,6 +1973,13 @@ public partial class MainWindow : Window
         FamilyTreeScrollViewer.Offset = new Vector(
             Math.Max(0, (FamilyTreeCanvas.Width - FamilyTreeScrollViewer.Bounds.Width) / 2),
             Math.Max(0, (FamilyTreeCanvas.Height - FamilyTreeScrollViewer.Bounds.Height) / 2));
+    }
+
+    private void PanFamilyTree(double deltaX, double deltaY)
+    {
+        FamilyTreeScrollViewer.Offset = new Vector(
+            Math.Max(0, FamilyTreeScrollViewer.Offset.X + deltaX),
+            Math.Max(0, FamilyTreeScrollViewer.Offset.Y + deltaY));
     }
 
     private string FindPersonName(Guid personId)

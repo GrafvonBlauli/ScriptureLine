@@ -561,6 +561,18 @@
                                             Content="+"
                                             Click="ZoomInTreeButton_Click" />
                                     <Button Classes="secondary"
+                                            Content="←"
+                                            Click="PanTreeLeftButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="↑"
+                                            Click="PanTreeUpButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="↓"
+                                            Click="PanTreeDownButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="→"
+                                            Click="PanTreeRightButton_Click" />
+                                    <Button Classes="secondary"
                                             Content="Zentrieren"
                                             Click="CenterTreeButton_Click" />
                                 </StackPanel>
@@ -581,7 +593,10 @@
                                                 Width="900"
                                                 Height="520"
                                                 Background="#EEEEEC"
-                                                PointerWheelChanged="FamilyTreeCanvas_PointerWheelChanged" />
+                                                PointerWheelChanged="FamilyTreeCanvas_PointerWheelChanged"
+                                                PointerPressed="FamilyTreeCanvas_PointerPressed"
+                                                PointerMoved="FamilyTreeCanvas_PointerMoved"
+                                                PointerReleased="FamilyTreeCanvas_PointerReleased" />
                                     </ScrollViewer>
                                 </Border>
 
