@@ -1697,13 +1697,14 @@ public partial class MainWindow : Window
             var isSelectedConnection = IsTreeConnectionSelected(connection);
             IBrush stroke = isSelectedConnection
                 ? new SolidColorBrush(Color.Parse("#C75C3E"))
+                : connection.LineStyle == FamilyTreeLineStyle.MutedDashed ? new SolidColorBrush(Color.Parse("#8B7D75"))
                 : connection.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
             AddTreePath(
                 connection.Type,
                 ScalePoint(connection.Start.X, connection.Start.Y),
                 ScalePoint(connection.End.X, connection.End.Y),
                 stroke,
-                connection.IsUncertain || connection.Type == FamilyTreeConnectionType.Placeholder);
+                connection.LineStyle);
         }
     }
 
@@ -1713,7 +1714,7 @@ public partial class MainWindow : Window
             && (_treeSelectedPersonId.Value == connection.FromPersonId || _treeSelectedPersonId.Value == connection.ToPersonId);
     }
 
-    private void AddTreePath(FamilyTreeConnectionType type, Point start, Point end, IBrush stroke, bool isDashed)
+    private void AddTreePath(FamilyTreeConnectionType type, Point start, Point end, IBrush stroke, FamilyTreeLineStyle lineStyle)
     {
         var pathData = _bezierConnectionBuilder
             .Build(new TreePoint(start.X, start.Y), new TreePoint(end.X, end.Y), type)
@@ -1723,11 +1724,15 @@ public partial class MainWindow : Window
         {
             Data = Geometry.Parse(pathData),
             Stroke = stroke,
-            StrokeThickness = isDashed ? 1.5 : 2.1
+            StrokeThickness = lineStyle == FamilyTreeLineStyle.Solid ? 2.1 : 1.5
         };
-        if (isDashed)
+        if (lineStyle == FamilyTreeLineStyle.Dashed || lineStyle == FamilyTreeLineStyle.MutedDashed)
         {
             path.StrokeDashArray = new AvaloniaList<double> { 4, 4 };
+        }
+        else if (lineStyle == FamilyTreeLineStyle.Dotted)
+        {
+            path.StrokeDashArray = new AvaloniaList<double> { 1, 4 };
         }
 
         FamilyTreeCanvas.Children.Add(path);

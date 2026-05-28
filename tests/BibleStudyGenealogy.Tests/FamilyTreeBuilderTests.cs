@@ -358,6 +358,172 @@ public sealed class FamilyTreeBuilderTests
     }
 
     [Fact]
+    public void BuildDiagram_GroupsChildrenWithSameParentsThroughOneParentGroup()
+    {
+        var builder = new FamilyTreeBuilder();
+        var father = new Person { Id = Guid.NewGuid(), MainName = "Vater", Gender = Gender.Male };
+        var mother = new Person { Id = Guid.NewGuid(), MainName = "Mutter", Gender = Gender.Female };
+        var firstChild = new Person { Id = Guid.NewGuid(), MainName = "Kind 1" };
+        var secondChild = new Person { Id = Guid.NewGuid(), MainName = "Kind 2" };
+        var thirdChild = new Person { Id = Guid.NewGuid(), MainName = "Kind 3" };
+        var relationships = new List<Relationship>();
+        foreach (var child in new[] { firstChild, secondChild, thirdChild })
+        {
+            relationships.Add(new Relationship
+            {
+                PersonAId = father.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            });
+            relationships.Add(new Relationship
+            {
+                PersonAId = mother.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            });
+        }
+
+        var diagram = builder.BuildDiagram(firstChild, new[] { father, mother, firstChild, secondChild, thirdChild }, relationships, new FamilyTreeLayoutOptions(2, true));
+        var parentConnections = diagram.Connections
+            .Where(connection => connection.Type == FamilyTreeConnectionType.ParentToFamily)
+            .ToList();
+        var childConnections = diagram.Connections
+            .Where(connection => connection.Type == FamilyTreeConnectionType.FamilyToChild)
+            .ToList();
+
+        Assert.Equal(2, parentConnections.Count);
+        Assert.Equal(3, childConnections.Count);
+        Assert.Single(childConnections.Select(connection => connection.ParentGroupId).Distinct());
+        Assert.Single(childConnections.Select(connection => connection.Start).Distinct());
+    }
+
+    [Fact]
+    public void BuildDiagram_SeparatesHalfSiblingsIntoDifferentParentGroups()
+    {
+        var builder = new FamilyTreeBuilder();
+        var father = new Person { Id = Guid.NewGuid(), MainName = "Vater", Gender = Gender.Male };
+        var firstMother = new Person { Id = Guid.NewGuid(), MainName = "Mutter A", Gender = Gender.Female };
+        var secondMother = new Person { Id = Guid.NewGuid(), MainName = "Mutter B", Gender = Gender.Female };
+        var firstChild = new Person { Id = Guid.NewGuid(), MainName = "Kind A" };
+        var secondChild = new Person { Id = Guid.NewGuid(), MainName = "Kind B" };
+        var relationships = new[]
+        {
+            ParentChild(father.Id, firstChild.Id),
+            ParentChild(firstMother.Id, firstChild.Id),
+            ParentChild(father.Id, secondChild.Id),
+            ParentChild(secondMother.Id, secondChild.Id)
+        };
+
+        var diagram = builder.BuildDiagram(firstChild, new[] { father, firstMother, secondMother, firstChild, secondChild }, relationships, new FamilyTreeLayoutOptions(2, true));
+        var childConnections = diagram.Connections
+            .Where(connection => connection.Type == FamilyTreeConnectionType.FamilyToChild)
+            .ToList();
+
+        Assert.Equal(2, childConnections.Count);
+        Assert.Equal(2, childConnections.Select(connection => connection.ParentGroupId).Distinct().Count());
+    }
+
+    [Fact]
+    public void BuildDiagram_SuppressesDirectSiblingLineWhenParentGroupExists()
+    {
+        var builder = new FamilyTreeBuilder();
+        var father = new Person { Id = Guid.NewGuid(), MainName = "Vater", Gender = Gender.Male };
+        var mother = new Person { Id = Guid.NewGuid(), MainName = "Mutter", Gender = Gender.Female };
+        var firstChild = new Person { Id = Guid.NewGuid(), MainName = "Kind A" };
+        var secondChild = new Person { Id = Guid.NewGuid(), MainName = "Kind B" };
+        var relationships = new[]
+        {
+            ParentChild(father.Id, firstChild.Id),
+            ParentChild(mother.Id, firstChild.Id),
+            ParentChild(father.Id, secondChild.Id),
+            ParentChild(mother.Id, secondChild.Id),
+            new Relationship
+            {
+                PersonAId = firstChild.Id,
+                PersonBId = secondChild.Id,
+                RelationshipType = RelationshipType.Sibling,
+                Direction = RelationshipDirection.Undirected
+            }
+        };
+
+        var diagram = builder.BuildDiagram(firstChild, new[] { father, mother, firstChild, secondChild }, relationships, new FamilyTreeLayoutOptions(2, true));
+
+        Assert.DoesNotContain(diagram.Connections, connection => connection.Type == FamilyTreeConnectionType.Sibling);
+    }
+
+    [Fact]
+    public void BuildDiagram_DrawsDirectSiblingLineWhenNoParentGroupExists()
+    {
+        var builder = new FamilyTreeBuilder();
+        var firstSibling = new Person { Id = Guid.NewGuid(), MainName = "Geschwister A" };
+        var secondSibling = new Person { Id = Guid.NewGuid(), MainName = "Geschwister B" };
+        var relationship = new Relationship
+        {
+            PersonAId = firstSibling.Id,
+            PersonBId = secondSibling.Id,
+            RelationshipType = RelationshipType.Sibling,
+            Direction = RelationshipDirection.Undirected
+        };
+
+        var diagram = builder.BuildDiagram(firstSibling, new[] { firstSibling, secondSibling }, new[] { relationship }, FamilyTreeLayoutOptions.Default);
+
+        Assert.Contains(diagram.Connections, connection => connection.Type == FamilyTreeConnectionType.Sibling);
+    }
+
+    [Fact]
+    public void BuildDiagram_TreatsAdoptiveAndLegalParentsAsParentGroups()
+    {
+        var builder = new FamilyTreeBuilder();
+        var adoptiveParent = new Person { Id = Guid.NewGuid(), MainName = "Adoptivelternteil" };
+        var legalParent = new Person { Id = Guid.NewGuid(), MainName = "Rechtlicher Elternteil" };
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Kind" };
+        var relationships = new[]
+        {
+            new Relationship
+            {
+                PersonAId = adoptiveParent.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.AdoptiveParent,
+                Direction = RelationshipDirection.PersonAToPersonB
+            },
+            new Relationship
+            {
+                PersonAId = legalParent.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.LegalParent,
+                Direction = RelationshipDirection.PersonAToPersonB
+            }
+        };
+
+        var diagram = builder.BuildDiagram(child, new[] { adoptiveParent, legalParent, child }, relationships, FamilyTreeLayoutOptions.Default);
+
+        Assert.Equal(2, diagram.Connections.Count(connection => connection.Type == FamilyTreeConnectionType.ParentToFamily));
+        Assert.Single(diagram.Connections, connection => connection.Type == FamilyTreeConnectionType.FamilyToChild);
+    }
+
+    [Fact]
+    public void BuildDiagram_MapsCertaintyToLineStyles()
+    {
+        var builder = new FamilyTreeBuilder();
+        var parent = new Person { Id = Guid.NewGuid(), MainName = "Elternteil" };
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Kind" };
+        var relationship = new Relationship
+        {
+            PersonAId = parent.Id,
+            PersonBId = child.Id,
+            RelationshipType = RelationshipType.ParentChild,
+            Direction = RelationshipDirection.PersonAToPersonB,
+            CertaintyLevel = CertaintyLevel.UserHypothesis
+        };
+
+        var diagram = builder.BuildDiagram(child, new[] { parent, child }, new[] { relationship }, FamilyTreeLayoutOptions.Default);
+
+        Assert.All(diagram.Connections, connection => Assert.Equal(FamilyTreeLineStyle.Dotted, connection.LineStyle));
+    }
+
+    [Fact]
     public void BuildDiagram_CreatesPlaceholderConnectionsForMissingParents()
     {
         var builder = new FamilyTreeBuilder();
@@ -429,5 +595,16 @@ public sealed class FamilyTreeBuilderTests
             && firstNode.X + FamilyTreeLayoutMetrics.NodeWidth > secondNode.X
             && firstNode.Y < secondNode.Y + FamilyTreeLayoutMetrics.NodeHeight
             && firstNode.Y + FamilyTreeLayoutMetrics.NodeHeight > secondNode.Y;
+    }
+
+    private static Relationship ParentChild(Guid parentId, Guid childId)
+    {
+        return new Relationship
+        {
+            PersonAId = parentId,
+            PersonBId = childId,
+            RelationshipType = RelationshipType.ParentChild,
+            Direction = RelationshipDirection.PersonAToPersonB
+        };
     }
 }

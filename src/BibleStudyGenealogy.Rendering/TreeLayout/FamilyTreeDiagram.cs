@@ -5,5 +5,6 @@ public sealed record FamilyTreeDiagram(
     IReadOnlyList<FamilyTreeDiagramLink> Links,
     IReadOnlyList<FamilyTreeDiagramConnector> Connectors,
     IReadOnlyList<FamilyTreeConnection> Connections,
+    IReadOnlyList<RelationshipValidationIssue> ValidationIssues,
     double Width,
     double Height);

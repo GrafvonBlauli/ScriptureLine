@@ -1,3 +1,5 @@
+using BibleStudyGenealogy.Core.Models;
+
 namespace BibleStudyGenealogy.Rendering.TreeLayout;
 
 public sealed record FamilyTreeDiagramConnector(
@@ -9,4 +11,6 @@ public sealed record FamilyTreeDiagramConnector(
     Guid? MotherPlaceholderId,
     double X,
     double Y,
-    bool IsUncertain);
+    bool IsUncertain,
+    IReadOnlyList<Guid>? RelationshipIds = null,
+    CertaintyLevel CertaintyLevel = CertaintyLevel.Unknown);

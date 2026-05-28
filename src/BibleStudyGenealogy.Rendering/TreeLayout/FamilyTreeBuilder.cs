@@ -1,4 +1,6 @@
 using BibleStudyGenealogy.Core.Models;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BibleStudyGenealogy.Rendering.TreeLayout;
 
@@ -9,6 +11,8 @@ public sealed class FamilyTreeBuilder
     private const double HorizontalGap = FamilyTreeLayoutMetrics.HorizontalGap;
     private const double VerticalGap = FamilyTreeLayoutMetrics.VerticalGap;
     private const double CanvasPadding = FamilyTreeLayoutMetrics.CanvasPadding;
+    private readonly ParentGroupBuilder _parentGroupBuilder = new();
+    private readonly FamilyTreeConnectionService _connectionService = new();
 
     public FamilyTreeSnapshot Build(Person focusPerson, IReadOnlyList<Person> people, IReadOnlyList<Relationship> relationships)
     {
@@ -81,10 +85,8 @@ public sealed class FamilyTreeBuilder
 
         options ??= FamilyTreeLayoutOptions.Default;
         var peopleById = people.ToDictionary(person => person.Id);
-        var activeRelationships = relationships
-            .Where(relationship => relationship.Status == RelationshipStatus.Active)
-            .Where(relationship => peopleById.ContainsKey(relationship.PersonAId) && peopleById.ContainsKey(relationship.PersonBId))
-            .ToList();
+        var relationshipGraph = RelationshipGraph.Create(peopleById, relationships);
+        var activeRelationships = relationshipGraph.ActiveRelationships;
 
         var connectedPersonIds = FindConnectedPersonIds(focusPerson.Id, activeRelationships);
         var generations = AssignGenerations(focusPerson.Id, activeRelationships, connectedPersonIds);
@@ -148,7 +150,8 @@ public sealed class FamilyTreeBuilder
                 .ToList();
         }
 
-        var connectors = CreateFamilyConnectors(focusPerson.Id, nodes, activeRelationships, visiblePersonIds, peopleById);
+        var parentGroups = _parentGroupBuilder.Build(focusPerson.Id, relationshipGraph, visiblePersonIds);
+        var connectors = CreateFamilyConnectors(nodes, parentGroups);
         nodes = ApplyGenerationCollisionPass(nodes);
         connectors = RecalculateConnectors(connectors, nodes);
         var minX = nodes.Count == 0 ? CanvasPadding : nodes.Min(node => node.X);
@@ -178,11 +181,12 @@ public sealed class FamilyTreeBuilder
         var links = activeRelationships
             .Where(relationship => visiblePersonIds.Contains(relationship.PersonAId) && visiblePersonIds.Contains(relationship.PersonBId))
             .Where(relationship => !IsParentChildForConnector(relationship, connectorChildIds))
+            .Where(relationship => !IsSiblingCoveredByParentGroup(relationship, parentGroups))
             .Select(CreateDiagramLink)
             .ToList();
-        var connections = CreateConnections(nodes, links, connectors);
+        var connections = _connectionService.CreateConnections(nodes, links, connectors);
 
-        return new FamilyTreeDiagram(nodes, links, connectors, connections, width, height);
+        return new FamilyTreeDiagram(nodes, links, connectors, connections, relationshipGraph.Issues, width, height);
     }
 
     private static FamilyTreeNodeKind DetermineNodeKind(Guid focusPersonId, Relationship relationship)
@@ -197,7 +201,7 @@ public sealed class FamilyTreeBuilder
             return FamilyTreeNodeKind.Sibling;
         }
 
-        if (relationship.RelationshipType != RelationshipType.ParentChild)
+        if (!ParentGroupBuilder.IsParentLike(relationship.RelationshipType))
         {
             return FamilyTreeNodeKind.Other;
         }
@@ -214,10 +218,10 @@ public sealed class FamilyTreeBuilder
 
     private static FamilyTreeLink CreateLink(Guid focusPersonId, Relationship relationship)
     {
-        var isDirectional = relationship.RelationshipType == RelationshipType.ParentChild
+        var isDirectional = ParentGroupBuilder.IsParentLike(relationship.RelationshipType)
             && relationship.Direction != RelationshipDirection.Undirected;
         var isUncertain = relationship.CertaintyLevel is not CertaintyLevel.ExplicitlyMentioned and not CertaintyLevel.Likely
-            || (relationship.RelationshipType == RelationshipType.ParentChild && relationship.Direction == RelationshipDirection.Undirected);
+            || (ParentGroupBuilder.IsParentLike(relationship.RelationshipType) && relationship.Direction == RelationshipDirection.Undirected);
         var otherPersonId = relationship.PersonAId == focusPersonId
             ? relationship.PersonBId
             : relationship.PersonAId;
@@ -234,14 +238,14 @@ public sealed class FamilyTreeBuilder
 
     private static FamilyTreeDiagramLink CreateDiagramLink(Relationship relationship)
     {
-        var isDirectional = relationship.RelationshipType == RelationshipType.ParentChild
+        var isDirectional = ParentGroupBuilder.IsParentLike(relationship.RelationshipType)
             && relationship.Direction != RelationshipDirection.Undirected;
         var isUncertain = relationship.CertaintyLevel is not CertaintyLevel.ExplicitlyMentioned and not CertaintyLevel.Likely
-            || (relationship.RelationshipType == RelationshipType.ParentChild && relationship.Direction == RelationshipDirection.Undirected);
+            || (ParentGroupBuilder.IsParentLike(relationship.RelationshipType) && relationship.Direction == RelationshipDirection.Undirected);
         var fromPersonId = relationship.PersonAId;
         var toPersonId = relationship.PersonBId;
 
-        if (relationship.RelationshipType == RelationshipType.ParentChild
+        if (ParentGroupBuilder.IsParentLike(relationship.RelationshipType)
             && relationship.Direction == RelationshipDirection.PersonBToPersonA)
         {
             fromPersonId = relationship.PersonBId;
@@ -252,7 +256,7 @@ public sealed class FamilyTreeBuilder
         {
             RelationshipType.Spouse => FamilyTreeDiagramLinkKind.Partner,
             RelationshipType.Sibling => FamilyTreeDiagramLinkKind.Sibling,
-            RelationshipType.ParentChild => FamilyTreeDiagramLinkKind.ParentToFamily,
+            RelationshipType.ParentChild or RelationshipType.AdoptiveParent or RelationshipType.LegalParent => FamilyTreeDiagramLinkKind.ParentToFamily,
             _ => FamilyTreeDiagramLinkKind.Direct
         };
 
@@ -273,90 +277,80 @@ public sealed class FamilyTreeBuilder
     }
 
     private static IReadOnlyList<FamilyTreeDiagramConnector> CreateFamilyConnectors(
-        Guid focusPersonId,
         List<FamilyTreeDiagramNode> nodes,
-        IReadOnlyList<Relationship> relationships,
-        IReadOnlySet<Guid> visiblePersonIds,
-        IReadOnlyDictionary<Guid, Person> peopleById)
+        IReadOnlyList<ParentGroup> parentGroups)
     {
         var connectors = new List<FamilyTreeDiagramConnector>();
         var nodesById = nodes.ToDictionary(node => node.PersonId);
-        foreach (var childNode in nodes.Where(node => !node.IsPlaceholder && node.Generation >= 0).ToList())
+        foreach (var parentGroup in parentGroups)
         {
-            var parentRelationships = relationships
-                .Select(GetParentChildPair)
-                .Where(pair => pair is not null && pair.Value.ChildPersonId == childNode.PersonId)
-                .Select(pair => pair!.Value)
-                .Where(pair => visiblePersonIds.Contains(pair.ParentPersonId))
+            var childNodes = parentGroup.ChildPersonIds
+                .Where(nodesById.ContainsKey)
+                .Select(childId => nodesById[childId])
+                .Where(node => !node.IsPlaceholder)
                 .ToList();
-            var hasFocusParents = childNode.PersonId == focusPersonId;
-            if (parentRelationships.Count == 0 && !hasFocusParents)
+            if (childNodes.Count == 0)
             {
                 continue;
             }
 
-            var parentNodes = parentRelationships
-                .Select(pair => nodesById.GetValueOrDefault(pair.ParentPersonId))
-                .Where(node => node is not null)
-                .Select(node => node!)
-                .ToList();
-            var father = parentNodes
-                .FirstOrDefault(node => node is not null && peopleById.TryGetValue(node.PersonId, out var person) && person.Gender == Gender.Male);
-            var mother = parentNodes
-                .FirstOrDefault(node => node is not null && peopleById.TryGetValue(node.PersonId, out var person) && person.Gender == Gender.Female);
-            var unknownParents = parentNodes
-                .Where(node => node != father && node != mother)
-                .ToList();
-            father ??= unknownParents.FirstOrDefault();
-            mother ??= unknownParents.Skip(father is null ? 0 : 1).FirstOrDefault();
-
-            var familyGroupId = Guid.NewGuid();
-            var childCenter = childNode.X + NodeWidth / 2;
-            var parentY = Math.Max(CanvasPadding, childNode.Y - NodeHeight - VerticalGap);
+            var childCenter = childNodes.Average(node => node.X + NodeWidth / 2);
+            var parentY = Math.Max(CanvasPadding, childNodes.Min(node => node.Y) - NodeHeight - VerticalGap);
             var fatherX = childCenter - NodeWidth - HorizontalGap / 2;
             var motherX = childCenter + HorizontalGap / 2;
+            var father = parentGroup.FatherPersonId is null || !nodesById.TryGetValue(parentGroup.FatherPersonId.Value, out var fatherNode)
+                ? null
+                : fatherNode;
+            var mother = parentGroup.MotherPersonId is null || !nodesById.TryGetValue(parentGroup.MotherPersonId.Value, out var motherNode)
+                ? null
+                : motherNode;
 
             Guid? fatherPlaceholderId = null;
             Guid? motherPlaceholderId = null;
-            if (father is null && hasFocusParents)
+            if (father is null && parentGroup.HasFatherPlaceholder)
             {
-                fatherPlaceholderId = Guid.NewGuid();
-                nodes.Add(CreatePlaceholderNode(fatherPlaceholderId.Value, childNode.PersonId, familyGroupId, FamilyTreePlaceholderKind.Father, fatherX, parentY, childNode.Generation - 1));
+                fatherPlaceholderId = CreateStablePlaceholderId(parentGroup.GroupId, FamilyTreePlaceholderKind.Father);
+                nodes.Add(CreatePlaceholderNode(fatherPlaceholderId.Value, childNodes[0].PersonId, parentGroup.GroupId, FamilyTreePlaceholderKind.Father, fatherX, parentY, childNodes[0].Generation - 1));
             }
             else if (father is not null)
             {
-                MoveNodeIfParentGeneration(nodes, father, fatherX, parentY, familyGroupId);
+                MoveNodeIfParentGeneration(nodes, father, fatherX, parentY, parentGroup.GroupId);
             }
 
-            if (mother is null && hasFocusParents)
+            if (mother is null && parentGroup.HasMotherPlaceholder)
             {
-                motherPlaceholderId = Guid.NewGuid();
-                nodes.Add(CreatePlaceholderNode(motherPlaceholderId.Value, childNode.PersonId, familyGroupId, FamilyTreePlaceholderKind.Mother, motherX, parentY, childNode.Generation - 1));
+                motherPlaceholderId = CreateStablePlaceholderId(parentGroup.GroupId, FamilyTreePlaceholderKind.Mother);
+                nodes.Add(CreatePlaceholderNode(motherPlaceholderId.Value, childNodes[0].PersonId, parentGroup.GroupId, FamilyTreePlaceholderKind.Mother, motherX, parentY, childNodes[0].Generation - 1));
             }
             else if (mother is not null)
             {
-                MoveNodeIfParentGeneration(nodes, mother, motherX, parentY, familyGroupId);
+                MoveNodeIfParentGeneration(nodes, mother, motherX, parentY, parentGroup.GroupId);
             }
 
             nodesById = nodes.ToDictionary(node => node.PersonId);
             var connectorX = GetFamilyConnectorX(
                 nodesById,
                 childCenter,
-                father?.PersonId,
-                mother?.PersonId,
+                parentGroup.FatherPersonId,
+                parentGroup.MotherPersonId,
                 fatherPlaceholderId,
                 motherPlaceholderId);
 
-            connectors.Add(new FamilyTreeDiagramConnector(
-                familyGroupId,
-                childNode.PersonId,
-                father?.PersonId,
-                mother?.PersonId,
-                fatherPlaceholderId,
-                motherPlaceholderId,
-                connectorX,
-                childNode.Y - VerticalGap / 2,
-                parentRelationships.Any(pair => pair.IsUncertain)));
+            foreach (var childNode in childNodes)
+            {
+                connectors.Add(new FamilyTreeDiagramConnector(
+                    parentGroup.GroupId,
+                    childNode.PersonId,
+                    parentGroup.FatherPersonId,
+                    parentGroup.MotherPersonId,
+                    fatherPlaceholderId,
+                    motherPlaceholderId,
+                    connectorX,
+                    childNode.Y - VerticalGap / 2,
+                    parentGroup.IsUncertain,
+                    parentGroup.RelationshipIds,
+                    parentGroup.CertaintyLevel));
+            }
         }
 
         return connectors;
@@ -581,6 +575,12 @@ public sealed class FamilyTreeBuilder
             familyGroupId);
     }
 
+    private static Guid CreateStablePlaceholderId(Guid parentGroupId, FamilyTreePlaceholderKind placeholderKind)
+    {
+        var bytes = MD5.HashData(Encoding.UTF8.GetBytes($"{parentGroupId}:{placeholderKind}"));
+        return new Guid(bytes);
+    }
+
     private static void MoveNodeIfParentGeneration(
         List<FamilyTreeDiagramNode> nodes,
         FamilyTreeDiagramNode node,
@@ -626,7 +626,7 @@ public sealed class FamilyTreeBuilder
 
     private static ParentChildPair? GetParentChildPair(Relationship relationship)
     {
-        if (relationship.RelationshipType != RelationshipType.ParentChild || relationship.Direction == RelationshipDirection.Undirected)
+        if (!ParentGroupBuilder.IsParentLike(relationship.RelationshipType) || relationship.Direction == RelationshipDirection.Undirected)
         {
             return null;
         }
@@ -641,6 +641,18 @@ public sealed class FamilyTreeBuilder
     {
         var pair = GetParentChildPair(relationship);
         return pair is not null && connectorChildIds.Contains(pair.Value.ChildPersonId);
+    }
+
+    private static bool IsSiblingCoveredByParentGroup(Relationship relationship, IReadOnlyList<ParentGroup> parentGroups)
+    {
+        if (relationship.RelationshipType != RelationshipType.Sibling)
+        {
+            return false;
+        }
+
+        return parentGroups.Any(group =>
+            group.ChildPersonIds.Contains(relationship.PersonAId)
+            && group.ChildPersonIds.Contains(relationship.PersonBId));
     }
 
     private static HashSet<Guid> FindConnectedPersonIds(Guid focusPersonId, IReadOnlyList<Relationship> relationships)
@@ -701,7 +713,7 @@ public sealed class FamilyTreeBuilder
 
     private static int? GetGenerationDelta(Relationship relationship)
     {
-        if (relationship.RelationshipType != RelationshipType.ParentChild || relationship.Direction == RelationshipDirection.Undirected)
+        if (!ParentGroupBuilder.IsParentLike(relationship.RelationshipType) || relationship.Direction == RelationshipDirection.Undirected)
         {
             return null;
         }

@@ -316,3 +316,12 @@
 **Ergebnis:** Kinderbeziehungen erzeugen nun auch bei unbekanntem Geschlecht eine Verbindung vom Elternteil zum Familienpunkt und von dort zum Kind.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 61 Tests in 1 m 59 s.
 **Offene Punkte:** Weitere visuelle Feinarbeit kann später die Linienführung bei mehreren Partnern und Halbgeschwistern verbessern.
+
+### 2026-05-28 21:33:37 +02:00 - Genealogische ParentGroup-Linienlogik eingeführt
+
+**Kategorie:** Stammbaum / Linienlogik / ParentGroups / Tests
+**Aktion:** Die Linienerzeugung wurde von einer reinen Connector-Liste zu einer genealogischen Pipeline erweitert: aktive Beziehungen werden als `RelationshipGraph` betrachtet, `ParentGroupBuilder` gruppiert parent-like Beziehungen zu ParentGroups, und `FamilyTreeConnectionService` erzeugt daraus gemeinsame Eltern-, Platzhalter-, Partner-, Geschwister- und Kindlinien. `FamilyTreeConnection` enthält nun Relationship-IDs, ParentGroup-ID, Sicherheit und Linienstil.
+**Geänderte Bereiche:** Rendering-DTOs für ParentGroups/ChildGroups/FamilyUnits/SiblingGroups, `RelationshipGraph`, `ParentGroupBuilder`, `FamilyTreeConnectionService`, `FamilyTreeBuilder`, `MainWindow.axaml.cs`, `FamilyTreeBuilderTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Mehrere Kinder mit denselben Eltern teilen sich eine ParentGroup und einen gemeinsamen Verzweigungspunkt. Halbgeschwister werden getrennt gruppiert. Direkte Geschwisterlinien werden unterdrückt, wenn gemeinsame Eltern bekannt sind. Adoptiv- und rechtliche Eltern werden im MVP parent-like behandelt. Unsicherheiten werden als Linienstile vorbereitet.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test --no-build` nach Neubuild erfolgreich mit 67 Tests in 2 m 1 s.
+**Offene Punkte:** Validierungs-Issues werden aktuell im Diagramm vorbereitet, aber noch nicht prominent im UI angezeigt. Komplexe Mehr-Eltern- und Zyklenfälle können später stärker visualisiert werden.
