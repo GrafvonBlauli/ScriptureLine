@@ -289,3 +289,12 @@
 **Ergebnis:** Nutzer können ein Projekt bewusst abmelden/schließen, ohne die App zu beenden. Das Projekt wird danach nicht automatisch wiederhergestellt, bis es erneut geöffnet wird.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 52 Tests in 1 m 34 s.
 **Offene Punkte:** Später kann ein Bestätigungsdialog ergänzt werden, falls wirklich unvollständige Eingaben verworfen würden.
+
+### 2026-05-28 14:17:03 +02:00 - Stammbaumkarten und Viewport stabilisiert
+
+**Kategorie:** Stammbaum / UI-Interaktion / Navigation / Tests
+**Aktion:** Kartenmaße wurden zentralisiert und erneut vergrößert. Stammbaumkarten werden nun als feste Border/Grid-Karten statt als normale Button-Karten gerendert, damit Hover und Auswahl nicht mehr über Default-Transparenz wirken. Die Bezier-Pfadlogik und Viewport-Berechnungen wurden in testbare Rendering-Services ausgelagert; Mausrad-Zoom hält jetzt den Weltpunkt unter dem Mauszeiger stabil, und Zentrieren kann auf die ausgewählte Person springen.
+**Geänderte Bereiche:** `FamilyTreeLayoutMetrics`, `BezierConnectionBuilder`, `FamilyTreeViewportService`, `MainWindow.axaml.cs`, `FamilyTreeViewportServiceTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Personenkarten bieten mehr Platz für Portrait, Name, Lebensdaten, Bearbeiten-Icon und Plus-Schaltfläche. Auswahl wird über Rahmen und hervorgehobene Verbindungslinien angezeigt, nicht über Transparenz. Pan/Zoom fühlt sich näher an einer echten Arbeitsfläche an.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. Erster `dotnet test`-Lauf lief in ein 120-s-Timeout; erneuter Lauf mit längerem Timeout erfolgreich mit 54 Tests in 1 m 50 s.
+**Offene Punkte:** Ein vollständiger Collision-Pass, Minimap, Fit-to-tree und ausgelagerte echte Avalonia-UserControls bleiben spätere Ausbaustufen.

@@ -23,6 +23,7 @@ Diese Matrix hält fest, welche sichtbaren Bedienelemente bereits eine echte Fun
 | Personen | Suche, Auswahl, Speichern | aktiv | über Repository-Tests und Smoke-Test-Szenarien abgesichert |
 | Beziehungen | Speichern, Auswählen, Archivieren | aktiv | Tests decken Speichern, Duplikate, Archivierung und FK-Integrität ab |
 | Stammbaum | Familienlayout, Platzhalterkarten, Plus-Overlay, Seitenpanel | aktiv in Version 0.4 | Vater/Mutter-Platzhalter, Familienconnectoren, Sideboard-Bearbeitung, Lebensdaten, Ortsfelder und geführtes Hinzufügen neuer oder bestehender Personen sind integriert |
+| Stammbaum | Karteninteraktion und Navigation | aktiv | größere feste Karten ohne Transparenz bei Hover/Auswahl, gekrümmte Verbindungspfade, Mausrad-Zoom zur Zeigerposition, Pan per freier Fläche/Mausbuttons und Zentrieren auf Auswahl |
 | Stammbaum | Lebensdaten berechnen | aktiv | Geburtsjahr, Sterbejahr und Alter werden für einfache Jahreswerte inklusive v. Chr. berechnet |
 | Ereignisse | Speichern, Auswahl | aktiv | Tests decken Speichern, Update, Datierung und Personen-Verknüpfung ab |
 | Bibelstellen | Speichern, Auswahl | aktiv | Tests decken Speichern, Suche, Bereichsvalidierung und Event-Verknüpfung ab |

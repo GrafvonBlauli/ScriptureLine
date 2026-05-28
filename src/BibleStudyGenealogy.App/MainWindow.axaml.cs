@@ -19,10 +19,9 @@ namespace BibleStudyGenealogy.App;
 
 public partial class MainWindow : Window
 {
-    private const double TreeCardWidth = 320;
-    private const double TreeCardHeight = 150;
-    private const double TreeCardCenterX = TreeCardWidth / 2;
-    private const double TreeCardAvatarSize = 66;
+    private const double TreeCardWidth = FamilyTreeLayoutMetrics.NodeWidth;
+    private const double TreeCardHeight = FamilyTreeLayoutMetrics.NodeHeight;
+    private const double TreeCardAvatarSize = FamilyTreeLayoutMetrics.AvatarSize;
 
     private readonly IProjectService _projectService = new LocalProjectService();
     private readonly AppStateStore _appStateStore = new();
@@ -32,6 +31,8 @@ public partial class MainWindow : Window
     private IBibleReferenceRepository? _bibleReferenceRepository;
     private IMediaRepository? _mediaRepository;
     private readonly FamilyTreeBuilder _familyTreeBuilder = new();
+    private readonly BezierConnectionBuilder _bezierConnectionBuilder = new();
+    private readonly FamilyTreeViewportService _familyTreeViewportService = new();
     private readonly TimelineBuilder _timelineBuilder = new();
     private readonly LifeDateCalculationService _lifeDateCalculationService = new();
     private readonly MediaImportService _mediaImportService = new();
@@ -54,6 +55,7 @@ public partial class MainWindow : Window
     private Vector _familyTreePanStartOffset;
     private Guid? _treeSelectedPersonId;
     private Guid? _addRelativeSourcePersonId;
+    private FamilyTreeDiagram? _currentFamilyTreeDiagram;
 
     public MainWindow()
     {
@@ -412,14 +414,18 @@ public partial class MainWindow : Window
         RefreshExistingPersonOptions();
     }
 
-    private void ZoomInTreeButton_Click(object? sender, RoutedEventArgs e)
+    private async void ZoomInTreeButton_Click(object? sender, RoutedEventArgs e)
     {
-        SetFamilyTreeZoom(_familyTreeZoom + 0.15);
+        await ZoomFamilyTreeAtAsync(
+            new Point(FamilyTreeScrollViewer.Bounds.Width / 2, FamilyTreeScrollViewer.Bounds.Height / 2),
+            0.15);
     }
 
-    private void ZoomOutTreeButton_Click(object? sender, RoutedEventArgs e)
+    private async void ZoomOutTreeButton_Click(object? sender, RoutedEventArgs e)
     {
-        SetFamilyTreeZoom(_familyTreeZoom - 0.15);
+        await ZoomFamilyTreeAtAsync(
+            new Point(FamilyTreeScrollViewer.Bounds.Width / 2, FamilyTreeScrollViewer.Bounds.Height / 2),
+            -0.15);
     }
 
     private void CenterTreeButton_Click(object? sender, RoutedEventArgs e)
@@ -447,16 +453,18 @@ public partial class MainWindow : Window
         PanFamilyTree(0, 180);
     }
 
-    private void FamilyTreeCanvas_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    private async void FamilyTreeCanvas_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
-        SetFamilyTreeZoom(_familyTreeZoom + (e.Delta.Y > 0 ? 0.1 : -0.1));
+        await ZoomFamilyTreeAtAsync(e.GetPosition(FamilyTreeScrollViewer), e.Delta.Y > 0 ? 0.1 : -0.1);
         e.Handled = true;
     }
 
     private void FamilyTreeCanvas_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         var point = e.GetCurrentPoint(FamilyTreeCanvas);
-        if (!point.Properties.IsLeftButtonPressed && !point.Properties.IsMiddleButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed
+            && !point.Properties.IsMiddleButtonPressed
+            && !point.Properties.IsRightButtonPressed)
         {
             return;
         }
@@ -1566,6 +1574,7 @@ public partial class MainWindow : Window
         FamilyTreeStatusText.Text = $"{snapshot.FocusPerson.DisplayName} ist der Fokus. Nutze + an einer Karte, um Verwandte hinzuzufügen.";
         _treeSelectedPersonId ??= _currentPerson.Id;
         var diagram = _familyTreeBuilder.BuildDiagram(_currentPerson, allPeople, treeRelationships, GetTreeLayoutOptions());
+        _currentFamilyTreeDiagram = diagram;
         DrawFamilyTree(diagram);
     }
 
@@ -1635,10 +1644,11 @@ public partial class MainWindow : Window
 
             var start = GetTreeEdgePoint(fromNode, toNode);
             var end = GetTreeEdgePoint(toNode, fromNode);
+            var isSelectedConnection = IsTreeConnectionSelected(fromNode.PersonId, toNode.PersonId);
             AddTreePath(
                 ScalePoint(start.X, start.Y),
                 ScalePoint(end.X, end.Y),
-                link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
+                isSelectedConnection ? new SolidColorBrush(Color.Parse("#C75C3E")) : link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
                 link.IsUncertain);
         }
 
@@ -1661,6 +1671,12 @@ public partial class MainWindow : Window
         return ScalePoint(point.X, point.Y);
     }
 
+    private bool IsTreeConnectionSelected(Guid firstPersonId, Guid secondPersonId)
+    {
+        return _treeSelectedPersonId is not null
+            && (_treeSelectedPersonId.Value == firstPersonId || _treeSelectedPersonId.Value == secondPersonId);
+    }
+
     private void DrawFamilyConnector(FamilyTreeDiagramConnector connector, IReadOnlyDictionary<Guid, FamilyTreeDiagramNode> nodesById)
     {
         if (!nodesById.TryGetValue(connector.ChildPersonId, out var childNode))
@@ -1670,7 +1686,10 @@ public partial class MainWindow : Window
 
         var familyPoint = new Point(connector.X, connector.Y);
         var scaledFamilyPoint = ScalePoint(familyPoint);
-        var stroke = connector.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
+        var childSelected = _treeSelectedPersonId == connector.ChildPersonId;
+        IBrush stroke = childSelected
+            ? new SolidColorBrush(Color.Parse("#C75C3E"))
+            : connector.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
         var parentIds = new[] { connector.FatherPersonId, connector.MotherPersonId, connector.FatherPlaceholderId, connector.MotherPlaceholderId }
             .Where(id => id is not null)
             .Select(id => id!.Value)
@@ -1682,10 +1701,13 @@ public partial class MainWindow : Window
                 continue;
             }
 
+            IBrush parentStroke = childSelected || _treeSelectedPersonId == parentNode.PersonId
+                ? new SolidColorBrush(Color.Parse("#C75C3E"))
+                : stroke;
             AddTreePath(
                 ScalePoint(GetTreeEdgePoint(parentNode, familyPoint)),
                 scaledFamilyPoint,
-                stroke,
+                parentStroke,
                 connector.IsUncertain || parentNode.IsPlaceholder);
         }
 
@@ -1698,21 +1720,9 @@ public partial class MainWindow : Window
 
     private void AddTreePath(Point start, Point end, IBrush stroke, bool isDashed)
     {
-        var deltaX = Math.Abs(end.X - start.X);
-        var deltaY = Math.Abs(end.Y - start.Y);
-        string pathData;
-        if (deltaX > deltaY)
-        {
-            var controlX = (start.X + end.X) / 2;
-            pathData = FormattableString.Invariant(
-                $"M {start.X:0.###},{start.Y:0.###} C {controlX:0.###},{start.Y:0.###} {controlX:0.###},{end.Y:0.###} {end.X:0.###},{end.Y:0.###}");
-        }
-        else
-        {
-            var controlY = (start.Y + end.Y) / 2;
-            pathData = FormattableString.Invariant(
-                $"M {start.X:0.###},{start.Y:0.###} C {start.X:0.###},{controlY:0.###} {end.X:0.###},{controlY:0.###} {end.X:0.###},{end.Y:0.###}");
-        }
+        var pathData = _bezierConnectionBuilder
+            .Build(new TreePoint(start.X, start.Y), new TreePoint(end.X, end.Y))
+            .ToInvariantPathData();
 
         var path = new PathShape
         {
@@ -1760,27 +1770,46 @@ public partial class MainWindow : Window
     {
         var person = _treePeople.FirstOrDefault(person => person.Id == node.PersonId);
         var borderBrush = GetTreeCardBorderBrush(person, node);
+        var isSelected = _treeSelectedPersonId == node.PersonId;
         var background = node.IsPlaceholder
             ? new SolidColorBrush(Color.Parse("#F4F4F1"))
             : node.IsUncertain
                 ? new SolidColorBrush(Color.Parse("#F1E2B9"))
                 : new SolidColorBrush(Color.Parse("#FDE8A8"));
-        var cardButton = new Button
+        var hoverBackground = node.IsPlaceholder
+            ? new SolidColorBrush(Color.Parse("#FAFAF7"))
+            : new SolidColorBrush(Color.Parse("#FFF0BF"));
+        var card = new Border
         {
             Width = TreeCardWidth * _familyTreeZoom,
             Height = TreeCardHeight * _familyTreeZoom,
-            Padding = new Thickness(0),
             Background = background,
             BorderBrush = borderBrush,
-            BorderThickness = new Thickness(node.IsFocus ? 2.2 : 1.3)
+            BorderThickness = new Thickness(isSelected || node.IsFocus ? 2.8 * _familyTreeZoom : 1.5 * _familyTreeZoom),
+            CornerRadius = new CornerRadius(8 * _familyTreeZoom),
+            Cursor = new Cursor(StandardCursorType.Hand)
+        };
+        card.PointerEntered += (_, _) => card.Background = hoverBackground;
+        card.PointerExited += (_, _) => card.Background = background;
+        card.PointerPressed += (_, args) =>
+        {
+            args.Handled = true;
+            if (node.IsPlaceholder)
+            {
+                OpenTreeNodeAddOverlay(node);
+                return;
+            }
+
+            SelectTreePerson(node.PersonId);
         };
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
-            ColumnDefinitions = new ColumnDefinitions("82,*,38"),
-            Margin = new Thickness(14 * _familyTreeZoom),
-            RowSpacing = 3 * _familyTreeZoom
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("92,*,42"),
+            Margin = new Thickness(16 * _familyTreeZoom, 14 * _familyTreeZoom, 14 * _familyTreeZoom, 10 * _familyTreeZoom),
+            RowSpacing = 5 * _familyTreeZoom,
+            ColumnSpacing = 12 * _familyTreeZoom
         };
         var avatar = new Border
         {
@@ -1804,7 +1833,7 @@ public partial class MainWindow : Window
             Text = node.DisplayName,
             Foreground = Brushes.Black,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 17 * _familyTreeZoom,
+            FontSize = 18 * _familyTreeZoom,
             TextWrapping = TextWrapping.Wrap,
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxLines = 2
@@ -1815,7 +1844,7 @@ public partial class MainWindow : Window
                 ? "noch nicht angelegt"
                 : person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 14 * _familyTreeZoom,
+            FontSize = 15 * _familyTreeZoom,
             TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
@@ -1825,7 +1854,7 @@ public partial class MainWindow : Window
                 ? "klicken zum Hinzufügen"
                 : person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
             Foreground = Brushes.DimGray,
-            FontSize = 14 * _familyTreeZoom,
+            FontSize = 15 * _familyTreeZoom,
             TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
@@ -1834,7 +1863,17 @@ public partial class MainWindow : Window
             Text = "✎",
             Foreground = Brushes.DimGray,
             FontSize = 18 * _familyTreeZoom,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+        };
+        editText.PointerPressed += (_, args) =>
+        {
+            args.Handled = true;
+            if (!node.IsPlaceholder)
+            {
+                SelectTreePerson(node.PersonId);
+                TreeMainNameTextBox.Focus();
+            }
         };
         var plusButton = new Button
         {
@@ -1847,19 +1886,13 @@ public partial class MainWindow : Window
             BorderBrush = Brushes.Transparent,
             Foreground = Brushes.Black
         };
-        plusButton.Click += (_, _) => OpenTreeNodeAddOverlay(node);
-        cardButton.Click += (_, _) =>
+        plusButton.Click += (_, args) =>
         {
-            if (node.IsPlaceholder)
-            {
-                OpenTreeNodeAddOverlay(node);
-                return;
-            }
-
-            SelectTreePerson(node.PersonId);
+            args.Handled = true;
+            OpenTreeNodeAddOverlay(node);
         };
 
-        Grid.SetRowSpan(avatar, 3);
+        Grid.SetRowSpan(avatar, 4);
         Grid.SetColumn(avatar, 0);
         Grid.SetRow(nameText, 0);
         Grid.SetColumn(nameText, 1);
@@ -1872,14 +1905,16 @@ public partial class MainWindow : Window
         Grid.SetColumn(editText, 2);
         Grid.SetRow(plusButton, 3);
         Grid.SetColumn(plusButton, 1);
+        plusButton.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+        plusButton.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
         grid.Children.Add(nameText);
         grid.Children.Add(avatar);
         grid.Children.Add(birthText);
         grid.Children.Add(deathText);
         grid.Children.Add(editText);
         grid.Children.Add(plusButton);
-        cardButton.Content = grid;
-        return cardButton;
+        card.Child = grid;
+        return card;
     }
 
     private void OpenTreeNodeAddOverlay(FamilyTreeDiagramNode node)
@@ -1942,6 +1977,11 @@ public partial class MainWindow : Window
         TreeSavePersonButton.IsEnabled = person is not null;
         TreeCancelEditButton.IsEnabled = person is not null;
         TreeAddRelativeButton.IsEnabled = true;
+
+        if (_currentFamilyTreeDiagram is not null)
+        {
+            DrawFamilyTree(_currentFamilyTreeDiagram);
+        }
     }
 
     private void FillTreePersonForm(Person person)
@@ -2130,15 +2170,42 @@ public partial class MainWindow : Window
 
     private void SetFamilyTreeZoom(double zoom)
     {
-        _familyTreeZoom = Math.Clamp(zoom, 0.45, 1.9);
+        _familyTreeZoom = FamilyTreeViewportService.ClampZoom(zoom);
         if (_currentPerson is not null)
         {
             _ = RefreshTreePreviewAsync();
         }
     }
 
+    private async Task ZoomFamilyTreeAtAsync(Point pointerScreenPoint, double zoomDelta)
+    {
+        var currentState = GetFamilyTreeViewportState();
+        var nextState = _familyTreeViewportService.ZoomAtPointer(
+            new TreePoint(pointerScreenPoint.X, pointerScreenPoint.Y),
+            zoomDelta,
+            currentState);
+        _familyTreeZoom = nextState.ZoomFactor;
+        if (_currentPerson is not null)
+        {
+            await RefreshTreePreviewAsync();
+        }
+
+        FamilyTreeScrollViewer.Offset = new Vector(nextState.OffsetX, nextState.OffsetY);
+    }
+
     private void CenterFamilyTree()
     {
+        if (_currentFamilyTreeDiagram is not null && _treeSelectedPersonId is not null)
+        {
+            var selectedNode = _currentFamilyTreeDiagram.Nodes.FirstOrDefault(node => node.PersonId == _treeSelectedPersonId.Value);
+            if (selectedNode is not null)
+            {
+                var centeredState = _familyTreeViewportService.CenterOnNode(selectedNode, GetFamilyTreeViewportState());
+                FamilyTreeScrollViewer.Offset = new Vector(centeredState.OffsetX, centeredState.OffsetY);
+                return;
+            }
+        }
+
         FamilyTreeScrollViewer.Offset = new Vector(
             Math.Max(0, (FamilyTreeCanvas.Width - FamilyTreeScrollViewer.Bounds.Width) / 2),
             Math.Max(0, (FamilyTreeCanvas.Height - FamilyTreeScrollViewer.Bounds.Height) / 2));
@@ -2149,6 +2216,16 @@ public partial class MainWindow : Window
         FamilyTreeScrollViewer.Offset = new Vector(
             Math.Max(0, FamilyTreeScrollViewer.Offset.X + deltaX),
             Math.Max(0, FamilyTreeScrollViewer.Offset.Y + deltaY));
+    }
+
+    private FamilyTreeViewportState GetFamilyTreeViewportState()
+    {
+        return new FamilyTreeViewportState(
+            _familyTreeZoom,
+            FamilyTreeScrollViewer.Offset.X,
+            FamilyTreeScrollViewer.Offset.Y,
+            FamilyTreeScrollViewer.Bounds.Width,
+            FamilyTreeScrollViewer.Bounds.Height);
     }
 
     private string FindPersonName(Guid personId)

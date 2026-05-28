@@ -4,11 +4,11 @@ namespace BibleStudyGenealogy.Rendering.TreeLayout;
 
 public sealed class FamilyTreeBuilder
 {
-    private const double NodeWidth = 320;
-    private const double NodeHeight = 150;
-    private const double HorizontalGap = 95;
-    private const double VerticalGap = 180;
-    private const double CanvasPadding = 90;
+    private const double NodeWidth = FamilyTreeLayoutMetrics.NodeWidth;
+    private const double NodeHeight = FamilyTreeLayoutMetrics.NodeHeight;
+    private const double HorizontalGap = FamilyTreeLayoutMetrics.HorizontalGap;
+    private const double VerticalGap = FamilyTreeLayoutMetrics.VerticalGap;
+    private const double CanvasPadding = FamilyTreeLayoutMetrics.CanvasPadding;
 
     public FamilyTreeSnapshot Build(Person focusPerson, IReadOnlyList<Person> people, IReadOnlyList<Relationship> relationships)
     {
