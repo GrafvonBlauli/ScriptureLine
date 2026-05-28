@@ -295,15 +295,17 @@ public sealed class FamilyTreeBuilder
                 continue;
             }
 
-            var father = parentRelationships
+            var parentNodes = parentRelationships
                 .Select(pair => nodesById.GetValueOrDefault(pair.ParentPersonId))
+                .Where(node => node is not null)
+                .Select(node => node!)
+                .ToList();
+            var father = parentNodes
                 .FirstOrDefault(node => node is not null && peopleById.TryGetValue(node.PersonId, out var person) && person.Gender == Gender.Male);
-            var mother = parentRelationships
-                .Select(pair => nodesById.GetValueOrDefault(pair.ParentPersonId))
+            var mother = parentNodes
                 .FirstOrDefault(node => node is not null && peopleById.TryGetValue(node.PersonId, out var person) && person.Gender == Gender.Female);
-            var unknownParents = parentRelationships
-                .Select(pair => nodesById.GetValueOrDefault(pair.ParentPersonId))
-                .Where(node => node is not null && node.Kind == FamilyTreeNodeKind.Parent && node != father && node != mother)
+            var unknownParents = parentNodes
+                .Where(node => node != father && node != mother)
                 .ToList();
             father ??= unknownParents.FirstOrDefault();
             mother ??= unknownParents.Skip(father is null ? 0 : 1).FirstOrDefault();

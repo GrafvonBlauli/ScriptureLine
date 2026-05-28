@@ -307,3 +307,12 @@
 **Ergebnis:** Eltern-/Kinder- und Platzhalterverbindungen werden aus einer gemeinsamen Verbindungsliste gezeichnet. Karten derselben Generation werden einfacher gegen Überlappung geschützt. Navigation im Stammbaum ist besser begrenzt und kann den sichtbaren Baum einpassen oder zurücksetzen.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 60 Tests in 1 m 47 s.
 **Offene Punkte:** Größere Stammbäume brauchen später einen ausgefeilteren Familiengruppen-/Subtree-Layoutalgorithmus, Minimap und optional gespeicherte manuelle Positionen.
+
+### 2026-05-28 14:44:47 +02:00 - Kinderlinien bei unbekanntem Eltern-Geschlecht repariert
+
+**Kategorie:** Stammbaum / Verbindungslinien / Regressionstest
+**Aktion:** Die Familienconnector-Logik wurde korrigiert, damit ein Elternteil mit unbekanntem Geschlecht trotzdem als Elternanker für ein Kind verwendet wird. Zuvor konnte bei neu angelegten Kindern die Parent-to-family-Linie fehlen, wenn die Ausgangsperson nicht eindeutig männlich/weiblich klassifiziert war.
+**Geänderte Bereiche:** `FamilyTreeBuilder`, `FamilyTreeBuilderTests`.
+**Ergebnis:** Kinderbeziehungen erzeugen nun auch bei unbekanntem Geschlecht eine Verbindung vom Elternteil zum Familienpunkt und von dort zum Kind.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 61 Tests in 1 m 59 s.
+**Offene Punkte:** Weitere visuelle Feinarbeit kann später die Linienführung bei mehreren Partnern und Halbgeschwistern verbessern.

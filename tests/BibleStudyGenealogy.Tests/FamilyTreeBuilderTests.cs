@@ -394,6 +394,35 @@ public sealed class FamilyTreeBuilderTests
         Assert.NotEqual(childConnector.FamilyGroupId, focusNode.FamilyGroupId);
     }
 
+    [Fact]
+    public void BuildDiagram_ChildConnectorIncludesUnknownGenderParent()
+    {
+        var builder = new FamilyTreeBuilder();
+        var focus = new Person { Id = Guid.NewGuid(), MainName = "Elternteil", Gender = Gender.Unknown };
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Kind", Gender = Gender.Unknown };
+        var relationship = new Relationship
+        {
+            PersonAId = focus.Id,
+            PersonBId = child.Id,
+            RelationshipType = RelationshipType.ParentChild,
+            Direction = RelationshipDirection.PersonAToPersonB
+        };
+
+        var diagram = builder.BuildDiagram(focus, new[] { focus, child }, new[] { relationship }, FamilyTreeLayoutOptions.Default);
+        var childConnector = diagram.Connectors.Single(connector => connector.ChildPersonId == child.Id);
+        var parentConnection = Assert.Single(diagram.Connections, connection =>
+            connection.Type == FamilyTreeConnectionType.ParentToFamily
+            && connection.FromPersonId == focus.Id
+            && connection.ToPersonId == child.Id);
+        var childConnection = Assert.Single(diagram.Connections, connection =>
+            connection.Type == FamilyTreeConnectionType.FamilyToChild
+            && connection.ToPersonId == child.Id);
+
+        Assert.Equal(focus.Id, childConnector.FatherPersonId);
+        Assert.Equal(childConnector.FamilyGroupId, parentConnection.FamilyGroupId);
+        Assert.Equal(parentConnection.End, childConnection.Start);
+    }
+
     private static bool NodesOverlap(FamilyTreeDiagramNode firstNode, FamilyTreeDiagramNode secondNode)
     {
         return firstNode.X < secondNode.X + FamilyTreeLayoutMetrics.NodeWidth
