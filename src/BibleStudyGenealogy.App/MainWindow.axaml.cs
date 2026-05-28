@@ -433,6 +433,16 @@ public partial class MainWindow : Window
         CenterFamilyTree();
     }
 
+    private void FitTreeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        FitFamilyTreeToViewport();
+    }
+
+    private void ResetTreeViewButton_Click(object? sender, RoutedEventArgs e)
+    {
+        ResetFamilyTreeView();
+    }
+
     private void PanTreeLeftButton_Click(object? sender, RoutedEventArgs e)
     {
         PanFamilyTree(-220, 0);
@@ -485,9 +495,17 @@ public partial class MainWindow : Window
 
         var currentPoint = e.GetPosition(FamilyTreeScrollViewer);
         var delta = _familyTreePanStartPoint - currentPoint;
-        FamilyTreeScrollViewer.Offset = new Vector(
-            Math.Max(0, _familyTreePanStartOffset.X + delta.X),
-            Math.Max(0, _familyTreePanStartOffset.Y + delta.Y));
+        var nextState = _familyTreeViewportService.PanBy(
+            GetFamilyTreeViewportState() with
+            {
+                OffsetX = _familyTreePanStartOffset.X,
+                OffsetY = _familyTreePanStartOffset.Y
+            },
+            delta.X,
+            delta.Y,
+            GetFamilyTreeContentWidth(),
+            GetFamilyTreeContentHeight());
+        FamilyTreeScrollViewer.Offset = new Vector(nextState.OffsetX, nextState.OffsetY);
         e.Handled = true;
     }
 
@@ -523,10 +541,9 @@ public partial class MainWindow : Window
             {
                 await _relationshipRepository.SaveAsync(existingRelationship);
                 AddRelativeOverlay.IsVisible = false;
-                AddRelativeStatusText.Text = "Vorhandene Person wurde verknüpft.";
-                _treeSelectedPersonId = existingPerson.Id;
-                await RefreshRelationshipsAsync();
                 await RefreshStatisticsAsync();
+                await FocusTreePersonAfterRelativeSaveAsync(existingPerson.Id, "Vorhandene Person wurde verknüpft.");
+                await RefreshRelationshipsAsync();
             }
             catch (Exception exception)
             {
@@ -558,16 +575,41 @@ public partial class MainWindow : Window
             await _personRepository.SaveAsync(newPerson);
             await _relationshipRepository.SaveAsync(newRelationship);
             AddRelativeOverlay.IsVisible = false;
-            AddRelativeStatusText.Text = "Neue Person und Beziehung wurden gespeichert.";
-            _treeSelectedPersonId = newPerson.Id;
             await RefreshPeopleAsync();
-            await RefreshRelationshipsAsync();
             await RefreshStatisticsAsync();
+            await FocusTreePersonAfterRelativeSaveAsync(newPerson.Id, "Neue Person und Beziehung wurden gespeichert.");
+            await RefreshRelationshipsAsync();
         }
         catch (Exception exception)
         {
             AddRelativeStatusText.Text = $"Verwandte Person konnte nicht gespeichert werden: {exception.Message}";
         }
+    }
+
+    private async Task FocusTreePersonAfterRelativeSaveAsync(Guid personId, string statusText)
+    {
+        if (_personRepository is null)
+        {
+            AddRelativeStatusText.Text = statusText;
+            return;
+        }
+
+        var person = await _personRepository.GetByIdAsync(personId);
+        if (person is null)
+        {
+            AddRelativeStatusText.Text = statusText;
+            return;
+        }
+
+        _currentPerson = person;
+        _isCurrentPersonPersisted = true;
+        _treeSelectedPersonId = person.Id;
+        FillFormFromPerson(person);
+        await RefreshTreePreviewAsync();
+        SelectTreePerson(person.Id);
+        CenterFamilyTree();
+        AddRelativeStatusText.Text = statusText;
+        FamilyTreeStatusText.Text = statusText;
     }
 
     private void CancelRelativeButton_Click(object? sender, RoutedEventArgs e)
@@ -1627,30 +1669,7 @@ public partial class MainWindow : Window
         FamilyTreeCanvas.Children.Clear();
         FamilyTreeCanvas.Width = diagram.Width * _familyTreeZoom;
         FamilyTreeCanvas.Height = diagram.Height * _familyTreeZoom;
-        var nodesById = diagram.Nodes.ToDictionary(node => node.PersonId);
-
-        foreach (var connector in diagram.Connectors)
-        {
-            DrawFamilyConnector(connector, nodesById);
-        }
-
-        foreach (var link in diagram.Links)
-        {
-            if (!nodesById.TryGetValue(link.FromPersonId, out var fromNode)
-                || !nodesById.TryGetValue(link.ToPersonId, out var toNode))
-            {
-                continue;
-            }
-
-            var start = GetTreeEdgePoint(fromNode, toNode);
-            var end = GetTreeEdgePoint(toNode, fromNode);
-            var isSelectedConnection = IsTreeConnectionSelected(fromNode.PersonId, toNode.PersonId);
-            AddTreePath(
-                ScalePoint(start.X, start.Y),
-                ScalePoint(end.X, end.Y),
-                isSelectedConnection ? new SolidColorBrush(Color.Parse("#C75C3E")) : link.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray,
-                link.IsUncertain);
-        }
+        DrawFamilyTreeConnections(diagram.Connections);
 
         foreach (var node in diagram.Nodes)
         {
@@ -1671,57 +1690,33 @@ public partial class MainWindow : Window
         return ScalePoint(point.X, point.Y);
     }
 
-    private bool IsTreeConnectionSelected(Guid firstPersonId, Guid secondPersonId)
+    private void DrawFamilyTreeConnections(IReadOnlyList<FamilyTreeConnection> connections)
+    {
+        foreach (var connection in connections)
+        {
+            var isSelectedConnection = IsTreeConnectionSelected(connection);
+            IBrush stroke = isSelectedConnection
+                ? new SolidColorBrush(Color.Parse("#C75C3E"))
+                : connection.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
+            AddTreePath(
+                connection.Type,
+                ScalePoint(connection.Start.X, connection.Start.Y),
+                ScalePoint(connection.End.X, connection.End.Y),
+                stroke,
+                connection.IsUncertain || connection.Type == FamilyTreeConnectionType.Placeholder);
+        }
+    }
+
+    private bool IsTreeConnectionSelected(FamilyTreeConnection connection)
     {
         return _treeSelectedPersonId is not null
-            && (_treeSelectedPersonId.Value == firstPersonId || _treeSelectedPersonId.Value == secondPersonId);
+            && (_treeSelectedPersonId.Value == connection.FromPersonId || _treeSelectedPersonId.Value == connection.ToPersonId);
     }
 
-    private void DrawFamilyConnector(FamilyTreeDiagramConnector connector, IReadOnlyDictionary<Guid, FamilyTreeDiagramNode> nodesById)
-    {
-        if (!nodesById.TryGetValue(connector.ChildPersonId, out var childNode))
-        {
-            return;
-        }
-
-        var familyPoint = new Point(connector.X, connector.Y);
-        var scaledFamilyPoint = ScalePoint(familyPoint);
-        var childSelected = _treeSelectedPersonId == connector.ChildPersonId;
-        IBrush stroke = childSelected
-            ? new SolidColorBrush(Color.Parse("#C75C3E"))
-            : connector.IsUncertain ? Brushes.Gray : Brushes.DarkSlateGray;
-        var parentIds = new[] { connector.FatherPersonId, connector.MotherPersonId, connector.FatherPlaceholderId, connector.MotherPlaceholderId }
-            .Where(id => id is not null)
-            .Select(id => id!.Value)
-            .ToList();
-        foreach (var parentId in parentIds)
-        {
-            if (!nodesById.TryGetValue(parentId, out var parentNode))
-            {
-                continue;
-            }
-
-            IBrush parentStroke = childSelected || _treeSelectedPersonId == parentNode.PersonId
-                ? new SolidColorBrush(Color.Parse("#C75C3E"))
-                : stroke;
-            AddTreePath(
-                ScalePoint(GetTreeEdgePoint(parentNode, familyPoint)),
-                scaledFamilyPoint,
-                parentStroke,
-                connector.IsUncertain || parentNode.IsPlaceholder);
-        }
-
-        AddTreePath(
-            scaledFamilyPoint,
-            ScalePoint(GetTreeEdgePoint(childNode, familyPoint)),
-            stroke,
-            connector.IsUncertain);
-    }
-
-    private void AddTreePath(Point start, Point end, IBrush stroke, bool isDashed)
+    private void AddTreePath(FamilyTreeConnectionType type, Point start, Point end, IBrush stroke, bool isDashed)
     {
         var pathData = _bezierConnectionBuilder
-            .Build(new TreePoint(start.X, start.Y), new TreePoint(end.X, end.Y))
+            .Build(new TreePoint(start.X, start.Y), new TreePoint(end.X, end.Y), type)
             .ToInvariantPathData();
 
         var path = new PathShape
@@ -1769,7 +1764,6 @@ public partial class MainWindow : Window
     private Control CreateTreePersonCard(FamilyTreeDiagramNode node)
     {
         var person = _treePeople.FirstOrDefault(person => person.Id == node.PersonId);
-        var borderBrush = GetTreeCardBorderBrush(person, node);
         var isSelected = _treeSelectedPersonId == node.PersonId;
         var background = node.IsPlaceholder
             ? new SolidColorBrush(Color.Parse("#F4F4F1"))
@@ -1779,142 +1773,46 @@ public partial class MainWindow : Window
         var hoverBackground = node.IsPlaceholder
             ? new SolidColorBrush(Color.Parse("#FAFAF7"))
             : new SolidColorBrush(Color.Parse("#FFF0BF"));
-        var card = new Border
-        {
-            Width = TreeCardWidth * _familyTreeZoom,
-            Height = TreeCardHeight * _familyTreeZoom,
-            Background = background,
-            BorderBrush = borderBrush,
-            BorderThickness = new Thickness(isSelected || node.IsFocus ? 2.8 * _familyTreeZoom : 1.5 * _familyTreeZoom),
-            CornerRadius = new CornerRadius(8 * _familyTreeZoom),
-            Cursor = new Cursor(StandardCursorType.Hand)
-        };
-        card.PointerEntered += (_, _) => card.Background = hoverBackground;
-        card.PointerExited += (_, _) => card.Background = background;
-        card.PointerPressed += (_, args) =>
-        {
-            args.Handled = true;
-            if (node.IsPlaceholder)
-            {
-                OpenTreeNodeAddOverlay(node);
-                return;
-            }
+        var birthText = node.IsPlaceholder
+            ? "noch offen"
+            : person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}";
+        var deathText = node.IsPlaceholder
+            ? "klicken zum Hinzufügen"
+            : person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}";
+        var model = new FamilyTreeCardModel(
+            _familyTreeZoom,
+            node.DisplayName,
+            birthText,
+            deathText,
+            GetAvatarGlyph(person),
+            background,
+            hoverBackground,
+            GetTreeCardBorderBrush(person, node),
+            isSelected,
+            node.IsFocus,
+            node.IsPlaceholder);
 
-            SelectTreePerson(node.PersonId);
-        };
+        return FamilyTreeCardFactory.Create(
+            model,
+            onSelect: () =>
+            {
+                if (node.IsPlaceholder)
+                {
+                    OpenTreeNodeAddOverlay(node);
+                    return;
+                }
 
-        var grid = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"),
-            ColumnDefinitions = new ColumnDefinitions("92,*,42"),
-            Margin = new Thickness(16 * _familyTreeZoom, 14 * _familyTreeZoom, 14 * _familyTreeZoom, 10 * _familyTreeZoom),
-            RowSpacing = 5 * _familyTreeZoom,
-            ColumnSpacing = 12 * _familyTreeZoom
-        };
-        var avatar = new Border
-        {
-            Width = TreeCardAvatarSize * _familyTreeZoom,
-            Height = TreeCardAvatarSize * _familyTreeZoom,
-            CornerRadius = new CornerRadius(TreeCardAvatarSize * _familyTreeZoom / 2),
-            Background = Brushes.White,
-            BorderBrush = Brushes.LightGray,
-            BorderThickness = new Thickness(1),
-            Child = new TextBlock
-            {
-                Text = GetAvatarGlyph(person),
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                FontSize = 26 * _familyTreeZoom,
-                Foreground = Brushes.LightGray
-            }
-        };
-        var nameText = new TextBlock
-        {
-            Text = node.DisplayName,
-            Foreground = Brushes.Black,
-            FontWeight = FontWeight.SemiBold,
-            FontSize = 18 * _familyTreeZoom,
-            TextWrapping = TextWrapping.Wrap,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxLines = 2
-        };
-        var birthText = new TextBlock
-        {
-            Text = node.IsPlaceholder
-                ? "noch nicht angelegt"
-                : person is null ? DisplayTreeNodeKind(node.Kind) : $"* {EmptyAsUnknown(FormatDateInfo(person.BirthDateInfo))}",
-            Foreground = Brushes.DimGray,
-            FontSize = 15 * _familyTreeZoom,
-            TextWrapping = TextWrapping.NoWrap,
-            TextTrimming = TextTrimming.CharacterEllipsis
-        };
-        var deathText = new TextBlock
-        {
-            Text = node.IsPlaceholder
-                ? "klicken zum Hinzufügen"
-                : person is null ? string.Empty : $"† {EmptyAsUnknown(FormatDateInfo(person.DeathDateInfo))}",
-            Foreground = Brushes.DimGray,
-            FontSize = 15 * _familyTreeZoom,
-            TextWrapping = TextWrapping.NoWrap,
-            TextTrimming = TextTrimming.CharacterEllipsis
-        };
-        var editText = new TextBlock
-        {
-            Text = "✎",
-            Foreground = Brushes.DimGray,
-            FontSize = 18 * _familyTreeZoom,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
-        };
-        editText.PointerPressed += (_, args) =>
-        {
-            args.Handled = true;
-            if (!node.IsPlaceholder)
-            {
                 SelectTreePerson(node.PersonId);
-                TreeMainNameTextBox.Focus();
-            }
-        };
-        var plusButton = new Button
-        {
-            Content = "+",
-            Width = 70 * _familyTreeZoom,
-            Height = 34 * _familyTreeZoom,
-            Padding = new Thickness(0),
-            FontSize = 22 * _familyTreeZoom,
-            Background = Brushes.White,
-            BorderBrush = Brushes.Transparent,
-            Foreground = Brushes.Black
-        };
-        plusButton.Click += (_, args) =>
-        {
-            args.Handled = true;
-            OpenTreeNodeAddOverlay(node);
-        };
-
-        Grid.SetRowSpan(avatar, 4);
-        Grid.SetColumn(avatar, 0);
-        Grid.SetRow(nameText, 0);
-        Grid.SetColumn(nameText, 1);
-        Grid.SetColumnSpan(nameText, 2);
-        Grid.SetRow(birthText, 1);
-        Grid.SetColumn(birthText, 1);
-        Grid.SetRow(deathText, 2);
-        Grid.SetColumn(deathText, 1);
-        Grid.SetRow(editText, 2);
-        Grid.SetColumn(editText, 2);
-        Grid.SetRow(plusButton, 3);
-        Grid.SetColumn(plusButton, 1);
-        plusButton.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
-        plusButton.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom;
-        grid.Children.Add(nameText);
-        grid.Children.Add(avatar);
-        grid.Children.Add(birthText);
-        grid.Children.Add(deathText);
-        grid.Children.Add(editText);
-        grid.Children.Add(plusButton);
-        card.Child = grid;
-        return card;
+            },
+            onEdit: () =>
+            {
+                if (!node.IsPlaceholder)
+                {
+                    SelectTreePerson(node.PersonId);
+                    TreeMainNameTextBox.Focus();
+                }
+            },
+            onAddRelative: () => OpenTreeNodeAddOverlay(node));
     }
 
     private void OpenTreeNodeAddOverlay(FamilyTreeDiagramNode node)
@@ -2183,7 +2081,9 @@ public partial class MainWindow : Window
         var nextState = _familyTreeViewportService.ZoomAtPointer(
             new TreePoint(pointerScreenPoint.X, pointerScreenPoint.Y),
             zoomDelta,
-            currentState);
+            currentState,
+            GetFamilyTreeContentWidth(),
+            GetFamilyTreeContentHeight());
         _familyTreeZoom = nextState.ZoomFactor;
         if (_currentPerson is not null)
         {
@@ -2200,7 +2100,11 @@ public partial class MainWindow : Window
             var selectedNode = _currentFamilyTreeDiagram.Nodes.FirstOrDefault(node => node.PersonId == _treeSelectedPersonId.Value);
             if (selectedNode is not null)
             {
-                var centeredState = _familyTreeViewportService.CenterOnNode(selectedNode, GetFamilyTreeViewportState());
+                var centeredState = _familyTreeViewportService.CenterOnNode(
+                    selectedNode,
+                    GetFamilyTreeViewportState(),
+                    GetFamilyTreeContentWidth(),
+                    GetFamilyTreeContentHeight());
                 FamilyTreeScrollViewer.Offset = new Vector(centeredState.OffsetX, centeredState.OffsetY);
                 return;
             }
@@ -2213,9 +2117,40 @@ public partial class MainWindow : Window
 
     private void PanFamilyTree(double deltaX, double deltaY)
     {
-        FamilyTreeScrollViewer.Offset = new Vector(
-            Math.Max(0, FamilyTreeScrollViewer.Offset.X + deltaX),
-            Math.Max(0, FamilyTreeScrollViewer.Offset.Y + deltaY));
+        var nextState = _familyTreeViewportService.PanBy(
+            GetFamilyTreeViewportState(),
+            deltaX,
+            deltaY,
+            GetFamilyTreeContentWidth(),
+            GetFamilyTreeContentHeight());
+        FamilyTreeScrollViewer.Offset = new Vector(nextState.OffsetX, nextState.OffsetY);
+    }
+
+    private void FitFamilyTreeToViewport()
+    {
+        var nextState = _familyTreeViewportService.FitToTree(
+            GetFamilyTreeViewportState(),
+            GetFamilyTreeContentWidth(),
+            GetFamilyTreeContentHeight());
+        _familyTreeZoom = nextState.ZoomFactor;
+        if (_currentPerson is not null)
+        {
+            _ = RefreshTreePreviewAsync();
+        }
+
+        FamilyTreeScrollViewer.Offset = new Vector(nextState.OffsetX, nextState.OffsetY);
+    }
+
+    private void ResetFamilyTreeView()
+    {
+        var nextState = FamilyTreeViewportService.ResetView(GetFamilyTreeViewportState());
+        _familyTreeZoom = nextState.ZoomFactor;
+        if (_currentPerson is not null)
+        {
+            _ = RefreshTreePreviewAsync();
+        }
+
+        FamilyTreeScrollViewer.Offset = new Vector(nextState.OffsetX, nextState.OffsetY);
     }
 
     private FamilyTreeViewportState GetFamilyTreeViewportState()
@@ -2226,6 +2161,16 @@ public partial class MainWindow : Window
             FamilyTreeScrollViewer.Offset.Y,
             FamilyTreeScrollViewer.Bounds.Width,
             FamilyTreeScrollViewer.Bounds.Height);
+    }
+
+    private double GetFamilyTreeContentWidth()
+    {
+        return _currentFamilyTreeDiagram?.Width ?? Math.Max(1, FamilyTreeCanvas.Width / Math.Max(_familyTreeZoom, 0.01));
+    }
+
+    private double GetFamilyTreeContentHeight()
+    {
+        return _currentFamilyTreeDiagram?.Height ?? Math.Max(1, FamilyTreeCanvas.Height / Math.Max(_familyTreeZoom, 0.01));
     }
 
     private string FindPersonName(Guid personId)

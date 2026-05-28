@@ -298,3 +298,12 @@
 **Ergebnis:** Personenkarten bieten mehr Platz für Portrait, Name, Lebensdaten, Bearbeiten-Icon und Plus-Schaltfläche. Auswahl wird über Rahmen und hervorgehobene Verbindungslinien angezeigt, nicht über Transparenz. Pan/Zoom fühlt sich näher an einer echten Arbeitsfläche an.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. Erster `dotnet test`-Lauf lief in ein 120-s-Timeout; erneuter Lauf mit längerem Timeout erfolgreich mit 54 Tests in 1 m 50 s.
 **Offene Punkte:** Ein vollständiger Collision-Pass, Minimap, Fit-to-tree und ausgelagerte echte Avalonia-UserControls bleiben spätere Ausbaustufen.
+
+### 2026-05-28 14:34:47 +02:00 - Stammbaumlayout, Connections und Navigation erweitert
+
+**Kategorie:** Stammbaum / Layout / Navigation / Workflows / Tests
+**Aktion:** Das Stammbaumdiagramm erzeugt nun ein einheitliches Connection-Modell für direkte Beziehungen, Partner/Geschwister, Eltern-Familienpunkte, Kindlinien und Platzhalterlinien. Der Builder führt einen einfachen Collision-Pass pro Generation aus und berechnet Familienconnectoren danach neu. Der Viewport-Service wurde um Pan-Grenzen, Fit-to-tree und Reset erweitert. Die Toolbar bietet nun `Auswahl zentrieren`, `Baum einpassen` und `Ansicht zurücksetzen`. Die Kartenzeichnung wurde in eine `FamilyTreeCardFactory` ausgelagert, und der Verwandten-Workflow fokussiert nach erfolgreichem Speichern automatisch die neue oder verknüpfte Person.
+**Geänderte Bereiche:** `FamilyTreeBuilder`, neue Connection-DTOs im Rendering-Projekt, `BezierConnectionBuilder`, `FamilyTreeViewportService`, `FamilyTreeCardFactory`, `MainWindow.axaml`, `MainWindow.axaml.cs`, `FamilyTreeBuilderTests`, `FamilyTreeViewportServiceTests`, `docs/ui-function-matrix.md`.
+**Ergebnis:** Eltern-/Kinder- und Platzhalterverbindungen werden aus einer gemeinsamen Verbindungsliste gezeichnet. Karten derselben Generation werden einfacher gegen Überlappung geschützt. Navigation im Stammbaum ist besser begrenzt und kann den sichtbaren Baum einpassen oder zurücksetzen.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 60 Tests in 1 m 47 s.
+**Offene Punkte:** Größere Stammbäume brauchen später einen ausgefeilteren Familiengruppen-/Subtree-Layoutalgorithmus, Minimap und optional gespeicherte manuelle Positionen.

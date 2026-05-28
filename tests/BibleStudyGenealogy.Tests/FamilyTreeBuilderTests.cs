@@ -287,6 +287,86 @@ public sealed class FamilyTreeBuilderTests
         Assert.True(motherPlaceholder.Y < childNode.Y);
         Assert.True(fatherPlaceholder.X < childNode.X);
         Assert.True(motherPlaceholder.X > childNode.X);
+        Assert.False(NodesOverlap(fatherPlaceholder, childNode));
+        Assert.False(NodesOverlap(motherPlaceholder, childNode));
+        Assert.False(NodesOverlap(fatherPlaceholder, motherPlaceholder));
+    }
+
+    [Fact]
+    public void BuildDiagram_MultipleChildrenDoNotOverlap()
+    {
+        var builder = new FamilyTreeBuilder();
+        var focus = new Person { Id = Guid.NewGuid(), MainName = "Noah", Gender = Gender.Male };
+        var firstChild = new Person { Id = Guid.NewGuid(), MainName = "Sem", Gender = Gender.Male };
+        var secondChild = new Person { Id = Guid.NewGuid(), MainName = "Ham", Gender = Gender.Male };
+        var relationships = new[]
+        {
+            new Relationship
+            {
+                PersonAId = focus.Id,
+                PersonBId = firstChild.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            },
+            new Relationship
+            {
+                PersonAId = focus.Id,
+                PersonBId = secondChild.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            }
+        };
+
+        var diagram = builder.BuildDiagram(focus, new[] { focus, firstChild, secondChild }, relationships, FamilyTreeLayoutOptions.Default);
+        var firstChildNode = diagram.Nodes.Single(node => node.PersonId == firstChild.Id);
+        var secondChildNode = diagram.Nodes.Single(node => node.PersonId == secondChild.Id);
+
+        Assert.Equal(firstChildNode.Y, secondChildNode.Y);
+        Assert.False(NodesOverlap(firstChildNode, secondChildNode));
+    }
+
+    [Fact]
+    public void BuildDiagram_CreatesConnectionModelForFamilyConnectors()
+    {
+        var builder = new FamilyTreeBuilder();
+        var father = new Person { Id = Guid.NewGuid(), MainName = "Amram", Gender = Gender.Male };
+        var mother = new Person { Id = Guid.NewGuid(), MainName = "Jochebed", Gender = Gender.Female };
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Moses", Gender = Gender.Male };
+        var relationships = new[]
+        {
+            new Relationship
+            {
+                PersonAId = father.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            },
+            new Relationship
+            {
+                PersonAId = mother.Id,
+                PersonBId = child.Id,
+                RelationshipType = RelationshipType.ParentChild,
+                Direction = RelationshipDirection.PersonAToPersonB
+            }
+        };
+
+        var diagram = builder.BuildDiagram(child, new[] { father, mother, child }, relationships, FamilyTreeLayoutOptions.Default);
+
+        Assert.Equal(2, diagram.Connections.Count(connection => connection.Type == FamilyTreeConnectionType.ParentToFamily));
+        Assert.Single(diagram.Connections, connection => connection.Type == FamilyTreeConnectionType.FamilyToChild);
+        Assert.All(diagram.Connections, connection => Assert.NotEqual(connection.Start, connection.End));
+    }
+
+    [Fact]
+    public void BuildDiagram_CreatesPlaceholderConnectionsForMissingParents()
+    {
+        var builder = new FamilyTreeBuilder();
+        var child = new Person { Id = Guid.NewGuid(), MainName = "Noah", Gender = Gender.Male };
+
+        var diagram = builder.BuildDiagram(child, new[] { child }, Array.Empty<Relationship>(), FamilyTreeLayoutOptions.Default);
+
+        Assert.Equal(2, diagram.Connections.Count(connection => connection.Type == FamilyTreeConnectionType.Placeholder));
+        Assert.Single(diagram.Connections, connection => connection.Type == FamilyTreeConnectionType.FamilyToChild);
     }
 
     [Fact]
@@ -312,5 +392,13 @@ public sealed class FamilyTreeBuilderTests
         Assert.True(childConnector.Y > focusNode.Y);
         Assert.True(childConnector.Y < childNode.Y);
         Assert.NotEqual(childConnector.FamilyGroupId, focusNode.FamilyGroupId);
+    }
+
+    private static bool NodesOverlap(FamilyTreeDiagramNode firstNode, FamilyTreeDiagramNode secondNode)
+    {
+        return firstNode.X < secondNode.X + FamilyTreeLayoutMetrics.NodeWidth
+            && firstNode.X + FamilyTreeLayoutMetrics.NodeWidth > secondNode.X
+            && firstNode.Y < secondNode.Y + FamilyTreeLayoutMetrics.NodeHeight
+            && firstNode.Y + FamilyTreeLayoutMetrics.NodeHeight > secondNode.Y;
     }
 }

@@ -579,8 +579,14 @@
                                             Content="→"
                                             Click="PanTreeRightButton_Click" />
                                     <Button Classes="secondary"
-                                            Content="Zentrieren"
+                                            Content="Auswahl zentrieren"
                                             Click="CenterTreeButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="Baum einpassen"
+                                            Click="FitTreeButton_Click" />
+                                    <Button Classes="secondary"
+                                            Content="Ansicht zurücksetzen"
+                                            Click="ResetTreeViewButton_Click" />
                                 </StackPanel>
                             </Grid>
 

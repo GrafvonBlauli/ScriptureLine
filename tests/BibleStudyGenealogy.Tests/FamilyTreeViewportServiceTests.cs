@@ -21,6 +21,18 @@ public sealed class FamilyTreeViewportServiceTests
     }
 
     [Fact]
+    public void ZoomAtPointer_ClampsOffsetToContentBounds()
+    {
+        var service = new FamilyTreeViewportService();
+        var state = new FamilyTreeViewportState(1, 700, 500, 500, 400);
+
+        var nextState = service.ZoomAtPointer(new TreePoint(480, 380), 0.5, state, 900, 700);
+
+        Assert.InRange(nextState.OffsetX, 0, 900 * nextState.ZoomFactor - state.ViewportWidth);
+        Assert.InRange(nextState.OffsetY, 0, 700 * nextState.ZoomFactor - state.ViewportHeight);
+    }
+
+    [Fact]
     public void CenterOnNode_PlacesNodeCenterInViewportCenter()
     {
         var service = new FamilyTreeViewportService();
@@ -45,5 +57,30 @@ public sealed class FamilyTreeViewportServiceTests
 
         Assert.Equal(state.ViewportWidth / 2, nodeCenter.X, precision: 6);
         Assert.Equal(state.ViewportHeight / 2, nodeCenter.Y, precision: 6);
+    }
+
+    [Fact]
+    public void FitToTree_ChoosesZoomThatFitsContentIntoViewport()
+    {
+        var service = new FamilyTreeViewportService();
+        var state = new FamilyTreeViewportState(1, 200, 180, 500, 400);
+
+        var nextState = service.FitToTree(state, 1000, 800);
+
+        Assert.Equal(0.5, nextState.ZoomFactor, precision: 6);
+        Assert.Equal(0, nextState.OffsetX);
+        Assert.Equal(0, nextState.OffsetY);
+    }
+
+    [Fact]
+    public void PanBy_ClampsToContentBounds()
+    {
+        var service = new FamilyTreeViewportService();
+        var state = new FamilyTreeViewportState(1, 50, 60, 500, 400);
+
+        var nextState = service.PanBy(state, 700, 600, 900, 700);
+
+        Assert.Equal(400, nextState.OffsetX);
+        Assert.Equal(300, nextState.OffsetY);
     }
 }

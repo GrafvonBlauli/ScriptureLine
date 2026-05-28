@@ -149,6 +149,8 @@ public sealed class FamilyTreeBuilder
         }
 
         var connectors = CreateFamilyConnectors(focusPerson.Id, nodes, activeRelationships, visiblePersonIds, peopleById);
+        nodes = ApplyGenerationCollisionPass(nodes);
+        connectors = RecalculateConnectors(connectors, nodes);
         var minX = nodes.Count == 0 ? CanvasPadding : nodes.Min(node => node.X);
         if (minX < CanvasPadding)
         {
@@ -178,8 +180,9 @@ public sealed class FamilyTreeBuilder
             .Where(relationship => !IsParentChildForConnector(relationship, connectorChildIds))
             .Select(CreateDiagramLink)
             .ToList();
+        var connections = CreateConnections(nodes, links, connectors);
 
-        return new FamilyTreeDiagram(nodes, links, connectors, width, height);
+        return new FamilyTreeDiagram(nodes, links, connectors, connections, width, height);
     }
 
     private static FamilyTreeNodeKind DetermineNodeKind(Guid focusPersonId, Relationship relationship)
@@ -357,6 +360,188 @@ public sealed class FamilyTreeBuilder
         return connectors;
     }
 
+    private static List<FamilyTreeDiagramNode> ApplyGenerationCollisionPass(IReadOnlyList<FamilyTreeDiagramNode> nodes)
+    {
+        var adjustedNodes = nodes.ToList();
+        foreach (var generationGroup in adjustedNodes
+                     .GroupBy(node => node.Generation)
+                     .OrderBy(group => group.Key))
+        {
+            var orderedNodes = generationGroup
+                .OrderBy(node => node.X)
+                .ThenBy(node => node.IsPlaceholder ? 0 : 1)
+                .ThenBy(node => node.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            var nextX = orderedNodes.Count > 0 ? orderedNodes[0].X : CanvasPadding;
+            foreach (var node in orderedNodes)
+            {
+                var targetX = Math.Max(node.X, nextX);
+                MoveNode(adjustedNodes, node.PersonId, targetX, node.Y, node.FamilyGroupId);
+                nextX = targetX + NodeWidth + HorizontalGap;
+            }
+        }
+
+        return adjustedNodes;
+    }
+
+    private static IReadOnlyList<FamilyTreeDiagramConnector> RecalculateConnectors(
+        IReadOnlyList<FamilyTreeDiagramConnector> connectors,
+        IReadOnlyList<FamilyTreeDiagramNode> nodes)
+    {
+        var nodesById = nodes.ToDictionary(node => node.PersonId);
+        return connectors
+            .Select(connector =>
+            {
+                if (!nodesById.TryGetValue(connector.ChildPersonId, out var childNode))
+                {
+                    return connector;
+                }
+
+                var parentIds = new[]
+                    {
+                        connector.FatherPersonId,
+                        connector.MotherPersonId,
+                        connector.FatherPlaceholderId,
+                        connector.MotherPlaceholderId
+                    }
+                    .Where(id => id is not null)
+                    .Select(id => id!.Value)
+                    .Where(nodesById.ContainsKey)
+                    .ToList();
+                var connectorX = parentIds.Count == 0
+                    ? childNode.X + NodeWidth / 2
+                    : parentIds.Average(id => nodesById[id].X + NodeWidth / 2);
+                var parentBottomY = parentIds.Count == 0
+                    ? childNode.Y - VerticalGap
+                    : parentIds.Max(id => nodesById[id].Y + NodeHeight);
+                var connectorY = parentBottomY + Math.Max(48, (childNode.Y - parentBottomY) / 2);
+
+                return connector with
+                {
+                    X = connectorX,
+                    Y = Math.Min(childNode.Y - 48, connectorY)
+                };
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<FamilyTreeConnection> CreateConnections(
+        IReadOnlyList<FamilyTreeDiagramNode> nodes,
+        IReadOnlyList<FamilyTreeDiagramLink> links,
+        IReadOnlyList<FamilyTreeDiagramConnector> connectors)
+    {
+        var connections = new List<FamilyTreeConnection>();
+        var nodesById = nodes.ToDictionary(node => node.PersonId);
+
+        foreach (var connector in connectors)
+        {
+            if (!nodesById.TryGetValue(connector.ChildPersonId, out var childNode))
+            {
+                continue;
+            }
+
+            var familyPoint = new TreePoint(connector.X, connector.Y);
+            var parentIds = new[]
+            {
+                connector.FatherPersonId,
+                connector.MotherPersonId,
+                connector.FatherPlaceholderId,
+                connector.MotherPlaceholderId
+            };
+
+            foreach (var parentId in parentIds.Where(id => id is not null).Select(id => id!.Value))
+            {
+                if (!nodesById.TryGetValue(parentId, out var parentNode))
+                {
+                    continue;
+                }
+
+                var type = parentNode.IsPlaceholder
+                    ? FamilyTreeConnectionType.Placeholder
+                    : FamilyTreeConnectionType.ParentToFamily;
+                connections.Add(new FamilyTreeConnection(
+                    Guid.NewGuid(),
+                    type,
+                    GetTreeEdgePoint(parentNode, familyPoint),
+                    familyPoint,
+                    connector.IsUncertain || parentNode.IsPlaceholder,
+                    parentNode.PersonId,
+                    childNode.PersonId,
+                    connector.FamilyGroupId));
+            }
+
+            connections.Add(new FamilyTreeConnection(
+                Guid.NewGuid(),
+                FamilyTreeConnectionType.FamilyToChild,
+                familyPoint,
+                GetTreeEdgePoint(childNode, familyPoint),
+                connector.IsUncertain,
+                null,
+                childNode.PersonId,
+                connector.FamilyGroupId));
+        }
+
+        foreach (var link in links)
+        {
+            if (!nodesById.TryGetValue(link.FromPersonId, out var fromNode)
+                || !nodesById.TryGetValue(link.ToPersonId, out var toNode))
+            {
+                continue;
+            }
+
+            connections.Add(new FamilyTreeConnection(
+                link.RelationshipId,
+                ToConnectionType(link.LinkKind),
+                GetTreeEdgePoint(fromNode, toNode),
+                GetTreeEdgePoint(toNode, fromNode),
+                link.IsUncertain,
+                fromNode.PersonId,
+                toNode.PersonId,
+                link.FamilyGroupId));
+        }
+
+        return connections;
+    }
+
+    private static FamilyTreeConnectionType ToConnectionType(FamilyTreeDiagramLinkKind linkKind)
+    {
+        return linkKind switch
+        {
+            FamilyTreeDiagramLinkKind.Partner => FamilyTreeConnectionType.Partner,
+            FamilyTreeDiagramLinkKind.Sibling => FamilyTreeConnectionType.Sibling,
+            FamilyTreeDiagramLinkKind.ParentToFamily => FamilyTreeConnectionType.ParentToFamily,
+            FamilyTreeDiagramLinkKind.FamilyToChild => FamilyTreeConnectionType.FamilyToChild,
+            FamilyTreeDiagramLinkKind.Placeholder => FamilyTreeConnectionType.Placeholder,
+            _ => FamilyTreeConnectionType.Direct
+        };
+    }
+
+    private static TreePoint GetTreeEdgePoint(FamilyTreeDiagramNode fromNode, FamilyTreeDiagramNode toNode)
+    {
+        return GetTreeEdgePoint(
+            fromNode,
+            new TreePoint(toNode.X + NodeWidth / 2, toNode.Y + NodeHeight / 2));
+    }
+
+    private static TreePoint GetTreeEdgePoint(FamilyTreeDiagramNode fromNode, TreePoint targetPoint)
+    {
+        var fromCenterX = fromNode.X + NodeWidth / 2;
+        var fromCenterY = fromNode.Y + NodeHeight / 2;
+        var deltaX = targetPoint.X - fromCenterX;
+        var deltaY = targetPoint.Y - fromCenterY;
+
+        if (Math.Abs(deltaX) >= Math.Abs(deltaY))
+        {
+            return new TreePoint(
+                deltaX >= 0 ? fromNode.X + NodeWidth : fromNode.X,
+                fromCenterY);
+        }
+
+        return new TreePoint(
+            fromCenterX,
+            deltaY >= 0 ? fromNode.Y + NodeHeight : fromNode.Y);
+    }
+
     private static bool HasVisibleParent(
         Guid childPersonId,
         IReadOnlyList<Relationship> relationships,
@@ -426,7 +611,7 @@ public sealed class FamilyTreeBuilder
             : parentCenters.Average();
     }
 
-    private static void MoveNode(List<FamilyTreeDiagramNode> nodes, Guid personId, double x, double y, Guid familyGroupId)
+    private static void MoveNode(List<FamilyTreeDiagramNode> nodes, Guid personId, double x, double y, Guid? familyGroupId)
     {
         var index = nodes.FindIndex(node => node.PersonId == personId);
         if (index < 0)
