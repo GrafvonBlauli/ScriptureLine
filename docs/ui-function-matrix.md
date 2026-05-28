@@ -1,6 +1,6 @@
 # ScriptureLine UI-Funktionsmatrix
 
-Stand: 2026-05-27
+Stand: 2026-05-28
 
 Diese Matrix hält fest, welche sichtbaren Bedienelemente bereits eine echte Funktion haben und welche bewusst als Platzhalter markiert sind.
 
@@ -8,6 +8,7 @@ Diese Matrix hält fest, welche sichtbaren Bedienelemente bereits eine echte Fun
 |---|---|---|---|
 | Projekt | Neues Projekt | aktiv | legt Projektordner, Manifest und SQLite-Datenbank an |
 | Projekt | Projekt öffnen | aktiv | öffnet bestehenden Projektordner und lädt Daten |
+| Projekt | Projekt schließen | aktiv nach Projektöffnung | speichert offene gültige Editorzustände, leert den zuletzt-geöffnet-Status und setzt die UI auf „kein Projekt geladen“ zurück |
 | Dashboard | Person anlegen | aktiv nach Projektöffnung | bereitet neue Person vor |
 | Dashboard | Ereignis erfassen | aktiv nach Projektöffnung | bereitet neues Ereignis vor |
 | Dashboard | Ort anlegen | Platzhalter | bleibt deaktiviert und als kommende Funktion markiert |

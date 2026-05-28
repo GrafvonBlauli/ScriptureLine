@@ -280,3 +280,12 @@
 **Ergebnis:** Kinderbeziehungen bleiben zwischen Fokus/Partner und Kind verankert, statt die Fokuskarte aus ihrer Position zu ziehen. Navigation im Stammbaum ist über Scrollbars, Mausrad-Zoom, Drag-Pan, Pfeile und Zentrieren möglich.
 **Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. Erster `dotnet test`-Lauf lief in das 5-Minuten-Timeout; erneuter Lauf mit längerem Timeout erfolgreich mit 51 Tests in 2 m 15 s.
 **Offene Punkte:** Eine Minimap und ein echtes automatisches Collision-Layout bleiben spätere Ausbaustufen.
+
+### 2026-05-28 13:59:05 +02:00 - Projekt-schließen-Knopf ergänzt
+
+**Kategorie:** Projektzustand / UI / Persistenz / Tests
+**Aktion:** In der Sidebar wurde ein Knopf `Projekt schließen` ergänzt. Beim Schließen werden gültige offene Editorzustände für Person, Stammbaum-Person, Ereignis, Bibelstelle und Medium gespeichert, der zuletzt-geöffnete-Projektzustand gelöscht und die UI auf „kein Projekt geladen“ zurückgesetzt.
+**Geänderte Bereiche:** `MainWindow.axaml`, `MainWindow.axaml.cs`, `docs/ui-function-matrix.md`, `UiFunctionMatrixTests`.
+**Ergebnis:** Nutzer können ein Projekt bewusst abmelden/schließen, ohne die App zu beenden. Das Projekt wird danach nicht automatisch wiederhergestellt, bis es erneut geöffnet wird.
+**Verifikation:** `dotnet build` erfolgreich mit 0 Warnungen und 0 Fehlern. `dotnet test` erfolgreich mit 52 Tests in 1 m 34 s.
+**Offene Punkte:** Später kann ein Bestätigungsdialog ergänzt werden, falls wirklich unvollständige Eingaben verworfen würden.

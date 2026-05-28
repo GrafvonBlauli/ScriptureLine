@@ -63,6 +63,21 @@ public sealed partial class UiFunctionMatrixTests
     }
 
     [Fact]
+    public void MainWindow_ProjectCloseButton_IsAvailable()
+    {
+        var rootDirectory = FindRepositoryRoot();
+        var xaml = File.ReadAllText(Path.Combine(rootDirectory, "src", "BibleStudyGenealogy.App", "MainWindow.axaml"));
+        var codeBehind = File.ReadAllText(Path.Combine(rootDirectory, "src", "BibleStudyGenealogy.App", "MainWindow.axaml.cs"));
+
+        Assert.Contains("x:Name=\"CloseProjectButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Content=\"Projekt schließen\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"CloseProjectButton_Click\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("void CloseProjectButton_Click", codeBehind, StringComparison.Ordinal);
+        Assert.Contains("SaveOpenEditorsBeforeCloseAsync", codeBehind, StringComparison.Ordinal);
+        Assert.Contains("ClearAsync", codeBehind, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AppModule_DefinesEverySidebarTarget()
     {
         var rootDirectory = FindRepositoryRoot();

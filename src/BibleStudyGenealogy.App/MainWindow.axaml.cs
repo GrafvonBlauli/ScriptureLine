@@ -200,6 +200,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void CloseProjectButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_currentWorkspace is null)
+        {
+            SidebarProjectStatus.Text = "Kein Projekt geladen";
+            ProjectStatusText.Text = "Es ist kein Projekt geöffnet.";
+            return;
+        }
+
+        try
+        {
+            SetBusyStatus("Projekt wird gespeichert und geschlossen ...");
+            var saveSummary = await SaveOpenEditorsBeforeCloseAsync();
+            await _appStateStore.ClearAsync();
+            await ClearProjectAsync($"Projekt wurde geschlossen. {saveSummary}");
+        }
+        catch (Exception exception)
+        {
+            ShowError($"Projekt konnte nicht geschlossen werden: {exception.Message}");
+        }
+    }
+
     private void CreatePersonButton_Click(object? sender, RoutedEventArgs e)
     {
         ShowModule(AppModule.People);
@@ -571,17 +593,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        person.MainName = TreeMainNameTextBox.Text.Trim();
-        person.AlternativeNames = TreeAlternativeNamesTextBox.Text?.Trim() ?? string.Empty;
-        person.PrimaryRole = TreeRoleTextBox.Text?.Trim() ?? string.Empty;
-        person.ShortDescription = TreeShortDescriptionTextBox.Text?.Trim() ?? string.Empty;
-        person.Gender = (TreeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown;
-        person.Status = (TreeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active;
-        person.BirthDateInfo = CreateDateInfo(TreeBirthDateTextBox.Text);
-        person.DeathDateInfo = CreateDateInfo(TreeDeathDateTextBox.Text);
-        person.AgeAtDeath = TryReadInt(TreeAgeTextBox.Text, out var ageAtDeath) ? ageAtDeath : null;
-        person.BirthPlaceText = TreeBirthPlaceTextBox.Text?.Trim() ?? string.Empty;
-        person.DeathPlaceText = TreeDeathPlaceTextBox.Text?.Trim() ?? string.Empty;
+        FillTreePersonFromForm(person);
 
         await _personRepository.SaveAsync(person);
         if (_currentPerson?.Id == person.Id)
@@ -954,6 +966,7 @@ public partial class MainWindow : Window
         SaveRelationshipButton.IsEnabled = true;
         SaveEventButton.IsEnabled = true;
         SaveBibleReferenceButton.IsEnabled = true;
+        CloseProjectButton.IsEnabled = true;
         ImportMediaButton.IsEnabled = true;
         SaveMediaButton.IsEnabled = false;
         PersonFormStatusText.Text = "Bereit für die erste Person.";
@@ -968,6 +981,132 @@ public partial class MainWindow : Window
         await RefreshBibleReferencesAsync();
         await RefreshMediaFilesAsync();
         await _appStateStore.SaveAsync(new AppState(workspace.RootDirectory));
+    }
+
+    private async Task<string> SaveOpenEditorsBeforeCloseAsync()
+    {
+        var savedItems = 0;
+
+        if (_personRepository is not null && _currentPerson is not null && !string.IsNullOrWhiteSpace(MainNameTextBox.Text))
+        {
+            FillPersonFromForm(_currentPerson);
+            await _personRepository.SaveAsync(_currentPerson);
+            _isCurrentPersonPersisted = true;
+            savedItems++;
+        }
+
+        if (_personRepository is not null
+            && _treeSelectedPersonId is not null
+            && !string.IsNullOrWhiteSpace(TreeMainNameTextBox.Text)
+            && _treeSelectedPersonId != _currentPerson?.Id)
+        {
+            var treePerson = await _personRepository.GetByIdAsync(_treeSelectedPersonId.Value);
+            if (treePerson is not null)
+            {
+                FillTreePersonFromForm(treePerson);
+                await _personRepository.SaveAsync(treePerson);
+                savedItems++;
+            }
+        }
+
+        if (_eventRepository is not null && _currentEvent is not null && !string.IsNullOrWhiteSpace(EventTitleTextBox.Text))
+        {
+            FillEventFromForm(_currentEvent);
+            await _eventRepository.SaveAsync(_currentEvent);
+            if (_currentPerson is not null && _isCurrentPersonPersisted)
+            {
+                await _eventRepository.LinkPersonAsync(_currentEvent.Id, _currentPerson.Id);
+            }
+
+            savedItems++;
+        }
+
+        if (_bibleReferenceRepository is not null
+            && _currentBibleReference is not null
+            && !string.IsNullOrWhiteSpace(BibleBookTextBox.Text)
+            && TryReadInt(BibleChapterStartTextBox.Text, out var chapterStart))
+        {
+            FillBibleReferenceFromForm(_currentBibleReference, chapterStart);
+            await _bibleReferenceRepository.SaveAsync(_currentBibleReference);
+            savedItems++;
+        }
+
+        if (_mediaRepository is not null && _currentMediaFile is not null)
+        {
+            _currentMediaFile.Description = MediaDescriptionTextBox.Text?.Trim() ?? string.Empty;
+            await _mediaRepository.SaveAsync(_currentMediaFile);
+            savedItems++;
+        }
+
+        return savedItems == 0
+            ? "Es waren keine offenen Bearbeitungen zu speichern."
+            : $"{savedItems} offene Bearbeitung(en) wurden gespeichert.";
+    }
+
+    private async Task ClearProjectAsync(string status)
+    {
+        _currentWorkspace = null;
+        _personRepository = null;
+        _relationshipRepository = null;
+        _eventRepository = null;
+        _bibleReferenceRepository = null;
+        _mediaRepository = null;
+        _currentPerson = null;
+        _isCurrentPersonPersisted = false;
+        _currentRelationship = null;
+        _currentEvent = null;
+        _currentBibleReference = null;
+        _currentMediaFile = null;
+        _people = Array.Empty<Person>();
+        _currentRelationships = Array.Empty<Relationship>();
+        _currentEvents = Array.Empty<ScriptureEvent>();
+        _mediaFiles = Array.Empty<MediaFile>();
+        _treePeople = Array.Empty<Person>();
+        _treeSelectedPersonId = null;
+        _addRelativeSourcePersonId = null;
+
+        SidebarProjectTitle.Text = "Studienmodus";
+        SidebarProjectStatus.Text = "Kein Projekt geladen";
+        ProjectStatusText.Text = status;
+        CurrentProjectTitle.Text = "Kein Projekt geöffnet";
+        CurrentProjectDetails.Text = "Öffne oder erstelle ein lokales Projekt, um weiterzuarbeiten.";
+        PersonCountText.Text = "0";
+        RelationshipCountText.Text = "0 Beziehungen vorbereitet";
+        EventCountText.Text = "0 Ereignisse";
+        BibleReferenceCountText.Text = "0 Bibelstellen";
+        MediaFileCountText.Text = "0 Medien";
+        PlaceCountText.Text = "0";
+        ResearchQuestionCountText.Text = "0 offene Fragen";
+
+        CreatePersonButton.IsEnabled = false;
+        QuickAddPersonButton.IsEnabled = false;
+        QuickAddEventButton.IsEnabled = false;
+        SavePersonButton.IsEnabled = false;
+        SaveRelationshipButton.IsEnabled = false;
+        ArchiveRelationshipButton.IsEnabled = false;
+        SaveEventButton.IsEnabled = false;
+        SaveBibleReferenceButton.IsEnabled = false;
+        ImportMediaButton.IsEnabled = false;
+        SaveMediaButton.IsEnabled = false;
+        CloseProjectButton.IsEnabled = false;
+
+        ClearPersonForm();
+        ClearRelationshipForm();
+        ClearEventForm();
+        ClearBibleReferenceForm();
+        ClearMediaForm();
+        ClearTreePersonForm();
+        FamilyTreeCanvas.Children.Clear();
+        AddRelativeOverlay.IsVisible = false;
+
+        await RefreshPeopleAsync();
+        await RefreshRelationshipsAsync();
+        await RefreshEventsAsync();
+        RefreshTimeline();
+        await RefreshBibleReferencesAsync();
+        await RefreshMediaFilesAsync();
+        UpdateMediaActionButtons();
+        ShowModule(AppModule.Dashboard);
     }
 
     private void SetBusyStatus(string status)
@@ -1335,6 +1474,21 @@ public partial class MainWindow : Window
         BibleSummaryTextBox.Text = bibleReference.UserSummary;
         BibleCommentTextBox.Text = bibleReference.UserComment;
     }
+
+    private void ClearBibleReferenceForm()
+    {
+        BibleTranslationTextBox.Text = string.Empty;
+        BibleBookTextBox.Text = string.Empty;
+        BibleChapterStartTextBox.Text = string.Empty;
+        BibleVerseStartTextBox.Text = string.Empty;
+        BibleChapterEndTextBox.Text = string.Empty;
+        BibleVerseEndTextBox.Text = string.Empty;
+        BibleReferenceTextBox.Text = string.Empty;
+        BibleSummaryTextBox.Text = string.Empty;
+        BibleCommentTextBox.Text = string.Empty;
+        BibleReferenceFormStatusText.Text = "Öffne oder erstelle zuerst ein Projekt.";
+    }
+
 
     private void FillPersonFromForm(Person person)
     {
@@ -1814,6 +1968,21 @@ public partial class MainWindow : Window
         SelectEnumValue(TreeStatusComboBox, person.Status);
     }
 
+    private void FillTreePersonFromForm(Person person)
+    {
+        person.MainName = TreeMainNameTextBox.Text?.Trim() ?? string.Empty;
+        person.AlternativeNames = TreeAlternativeNamesTextBox.Text?.Trim() ?? string.Empty;
+        person.PrimaryRole = TreeRoleTextBox.Text?.Trim() ?? string.Empty;
+        person.ShortDescription = TreeShortDescriptionTextBox.Text?.Trim() ?? string.Empty;
+        person.Gender = (TreeGenderComboBox.SelectedItem as EnumDisplay<Gender>)?.Value ?? Gender.Unknown;
+        person.Status = (TreeStatusComboBox.SelectedItem as EnumDisplay<PersonStatus>)?.Value ?? PersonStatus.Active;
+        person.BirthDateInfo = CreateDateInfo(TreeBirthDateTextBox.Text);
+        person.DeathDateInfo = CreateDateInfo(TreeDeathDateTextBox.Text);
+        person.AgeAtDeath = TryReadInt(TreeAgeTextBox.Text, out var ageAtDeath) ? ageAtDeath : null;
+        person.BirthPlaceText = TreeBirthPlaceTextBox.Text?.Trim() ?? string.Empty;
+        person.DeathPlaceText = TreeDeathPlaceTextBox.Text?.Trim() ?? string.Empty;
+    }
+
     private void ClearTreePersonForm()
     {
         TreeMainNameTextBox.Text = string.Empty;
@@ -2127,6 +2296,13 @@ public partial class MainWindow : Window
         UpdateMediaActionButtons();
     }
 
+    private void ClearMediaForm()
+    {
+        MediaDescriptionTextBox.Text = string.Empty;
+        SelectedMediaText.Text = "Kein Medium ausgewählt.";
+        MediaFormStatusText.Text = "Öffne oder erstelle zuerst ein Projekt.";
+    }
+
     private void UpdateMediaActionButtons()
     {
         var hasProject = _currentWorkspace is not null;
@@ -2356,6 +2532,16 @@ public partial class MainWindow : Window
 
             var json = JsonSerializer.Serialize(state, JsonOptions);
             await File.WriteAllTextAsync(_stateFilePath, json);
+        }
+
+        public Task ClearAsync()
+        {
+            if (File.Exists(_stateFilePath))
+            {
+                File.Delete(_stateFilePath);
+            }
+
+            return Task.CompletedTask;
         }
     }
 }

@@ -54,6 +54,12 @@
                         <Button Classes="secondary"
                                 Content="Projekt öffnen"
                                 Click="OpenProjectButton_Click" />
+                        <Button x:Name="CloseProjectButton"
+                                Classes="secondary"
+                                Content="Projekt schließen"
+                                Click="CloseProjectButton_Click"
+                                IsEnabled="False"
+                                ToolTip.Tip="Speichert offene Eingaben und meldet das aktuelle Projekt ab." />
                     </StackPanel>
                 </Border>
             </Grid>
